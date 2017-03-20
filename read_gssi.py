@@ -15,19 +15,14 @@ import argparse
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, SymLogNorm, LinearSegmentedColormap
 
 # import gpslib
 import gssilib
 
+colors = [(0, 0, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 0, 0)]  # B W R
+bwor = LinearSegmentedColormap.from_list('wide_bwor', colors)
 
-def fake_main():
-    parser = get_args()
-    args = parser.parse_args()
-    check_args(args)
-    dzts = pickle.load(open('pickled_dzt', 'rb'))
-    gssilib.check_headers(dzts)
-    gps_data = pickle.load(open('pickled_gps', 'rb'))
 
 def main():
     parser = get_args()
@@ -37,7 +32,22 @@ def main():
     dzts = [gssilib.read_dzt(fn, rev=rev) for fn, rev in zip(args.fn, rev_list)]
     gssilib.check_headers(dzts)
     gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    
+
+    # detrend horizontally because of weird effects, then normalize so the different chunks match as well
+    if True:
+        for dzt in dzts:
+            mean_vals = np.mean(dzt.samp[dzt.samp.shape[0] // 2:, :], axis=0)
+            mean_val = np.mean(mean_vals)
+            mean_vals /= mean_val
+            vals = np.vstack((np.ones(mean_vals.shape), np.arange(len(mean_vals)))).transpose()
+            fit = np.linalg.lstsq(vals, mean_vals)[0]
+            dzt.samp = dzt.samp / np.dot(vals, fit)
+        all_mean_vals = np.array([np.mean(dzt.samp[dzt.samp.shape[0] // 2:, :]) for dzt in dzts])
+        meanest_value = np.mean(all_mean_vals)
+        all_mean_vals /= meanest_value
+        for dzt, scale  in zip(dzts, all_mean_vals):
+            dzt.samp = dzt.samp / scale
+
     gps_stack_number = (gps_data[0].scans[1] - gps_data[0].scans[0]) * args.stack
     stacked_data_list =[np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1) for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))]
 
@@ -114,18 +124,18 @@ def get_args():
 def plot_bens_radar(data, x=None, y=None, out_fn=None):
     fig = plt.figure(figsize=(12, 8))
     ax = fig.gca()
-    lims = np.percentile(data, (5, 95))
+    lims = np.percentile(data, (1, 99))
+    av_lim = np.mean(np.abs(lims))
     if x is not None and y is not None:
         # plt.contourf(x, y, np.flipud(data), 2048, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data[color_subset_minind:, :].min(), vmax=data[color_subset_minind:, :].max()))
         # levels = np.linspace(data.min(), data.max(), num=2048)
-        plt.pcolormesh(x, y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
+        # plt.pcolormesh(x, y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
+        plt.pcolormesh(x, y, np.flipud(data), cmap=bwor, norm=SymLogNorm(1.0, vmin=-av_lim, vmax=av_lim))
         ax.set_xlabel('Distance (km)')
         ax.set_xlim(x.min(), x.max())
         ax.set_ylim(y.min(), y.max())
         ax.invert_yaxis()
     else:
-        print(data.min(), data.max())
-        print(data)
         # plt.imshow(data, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data.min(), vmax=data.max()))
         # plt.imshow(data, cmap=plt.cm.bwr, norm=LogNorm(vmin=1.0e-6, vmax=data.max()))
         # plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min(), vmax=data.max())
