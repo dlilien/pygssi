@@ -169,7 +169,11 @@ def get_dzg_data(fn, t_srs='sps', rev=False):
 
 def check_headers(dzts):
     """This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not"""
-    pass
+    reference = dzts[0].header
+    for attr in 'nsamp', 'antname', 'bytes':
+        for dzt in dzts[1: ]:
+            if not getattr(reference, attr) == getattr(dzt.header, attr):
+                raise GssiError('Incompatible headers')
 
 
 class GssiError(Exception):

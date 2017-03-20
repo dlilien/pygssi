@@ -25,26 +25,24 @@ def fake_main():
     parser = get_args()
     args = parser.parse_args()
     check_args(args)
-    rev_list = [False if i == '0' else True for i in args.rev.split(',')]
-    dzts = [gssilib.read_dzt(fn, rev=rev) for fn, rev in zip(args.fn, rev_list)]
+    dzts = pickle.load(open('pickled_dzt', 'rb'))
     gssilib.check_headers(dzts)
-    pickle.dump(dzts, open('pickled_dzt', 'wb'))
-    gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    pickle.dump(gps_data, open('pickled_gps', 'wb'))
-
+    gps_data = pickle.load(open('pickled_gps', 'rb'))
 
 def main():
     parser = get_args()
     args = parser.parse_args()
     check_args(args)
-    dzts = pickle.load(open('pickled_dzt', 'rb'))
+    rev_list = [False if i == '0' else True for i in args.rev.split(',')]
+    dzts = [gssilib.read_dzt(fn, rev=rev) for fn, rev in zip(args.fn, rev_list)]
     gssilib.check_headers(dzts)
-    gps_data = pickle.load(open('pickled_gps', 'rb'))
+    gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
+    
     gps_stack_number = (gps_data[0].scans[1] - gps_data[0].scans[0]) * args.stack
-    stacked_data = np.hstack([np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1) for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))])
+    stacked_data_list =[np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1) for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))]
 
+    stacked_data = np.hstack(stacked_data_list)
     stacked_data = zero_surface(stacked_data)
-
     if args.gp is not None:
         stacked_data = gained_decibels(args.gp, stacked_data)
     else:
@@ -54,8 +52,17 @@ def main():
     for gpd in gps_data:
         gpd.set_proj('sps')
         gpd.get_dist()
-    total_dist = np.hstack([gps_data[0].dist.flatten()[1:]] + [gps_data[i].dist.flatten()[1:] + gps_data[i - 1].dist.flatten()[-1] for i in range(1, len(gps_data))])
-    total_dist = total_dist[::args.stack]
+
+    dist_list = [gps_data[0].dist.flatten()[1:]] + [gps_data[i].dist.flatten()[1:] for i in range(1, len(gps_data))]
+    dist_list = [d[::args.stack] for d in dist_list]
+
+    # for some reason my other approach was buggy, so I'm being lazy
+    for i in range(1, len(dist_list)):
+        dist_list[i] += dist_list[i-1][-1]
+    for i, dzt in enumerate(stacked_data_list):
+        if dzt.shape[1] != len(dist_list[i]):
+            dist_list[i] = dist_list[i][:-1]
+    total_dist = np.hstack(dist_list)
 
     if args.diel is not None:
         # Find the travel time per pixel
@@ -133,9 +140,7 @@ def data_to_db(data, p1=None):
     if p1 is None:
         shp = data.shape
         p1 = data[shp[0] // 2:, :].mean()
-        print(p1)
     dat = 10. * np.log(data / p1)
-    print(dat[3 * shp[0] // 4:, :].mean())
     return 10. * np.log(data / p1)
 
 
