@@ -39,5 +39,6 @@ def get_args():
     parser.add_argument('-o', type=str, default=None, help='Name for combined output')
     return parser
 
+
 if __name__ == '__main__':
     main()

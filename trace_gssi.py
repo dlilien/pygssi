@@ -9,6 +9,9 @@
 """
 Combine GPS and DZT info to form a nice output
 """
+
+import tracelib
+
 import os
 import codecs
 import pickle
@@ -20,22 +23,12 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.stats import linregress
 from scipy.io import loadmat
-# from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm
+import matplotlib.gridspec as gridspec
+from matplotlib.widgets import Button
 
 import gpslib
 import gssilib
-
-
-def fake_main():
-    parser = get_args()
-    args = parser.parse_args()
-    check_args(args)
-    rev_list = [False if i == '0' else True for i in args.rev.split(',')]
-    dzts = [gssilib.read_dzt(fn, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    gssilib.check_headers(dzts)
-    pickle.dump(dzts, open('pickled_dzt', 'wb'))
-    gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    pickle.dump(gps_data, open('pickled_gps', 'wb'))
 
 
 def main():
@@ -44,14 +37,16 @@ def main():
     check_args(args)
     hashval = hashlib.sha256(''.join(args.fn).encode('UTF-8')).hexdigest()
     if args.pickle is not None or os.path.exists(hashval):
-        hashval = args.pickle
+        if args.pickle is not None:
+            hashval = args.pickle
         (gps_data,
          stacked_data,
          kinematic_data,
          total_lat,
          total_lon,
          total_dist,
-         dzts) = pickle.load(open(hashval, 'rb'))
+         dzts,
+         elev_list) = pickle.load(open(hashval, 'rb'))
 
     else:
         rev_list = [False if i == '0' else True for i in args.rev.split(',')]
@@ -64,6 +59,9 @@ def main():
         if args.elev is not None:
             kinematic_data = gpslib.kinematic_info('kinematic_elevations.mat')
             elev_list = [kinematic_data.query(gpd.x, gpd.y) for gpd in gps_data]
+        else:
+            kinematic_data = None
+            elev_list = None
         total_dist = np.hstack([gps_data[0].dist.flatten()[0:]] + [gps_data[i].dist.flatten()[1:] + np.sum([gps_data[j].dist.flatten()[-1] for j in range(i)]) for i in range(1, len(gps_data))])
         total_lat = np.hstack([gps_data[0].lat.flatten()[0:]] + [gps_data[i].lat.flatten()[1:] for i in range(1, len(gps_data))])
         total_lon = np.hstack([gps_data[0].lon.flatten()[0:]] + [gps_data[i].lon.flatten()[1:] for i in range(1, len(gps_data))])
@@ -82,7 +80,7 @@ def main():
                 stack_data_list[i] = stack_data_list[i][:, :-1]
         stacked_data = np.hstack(stack_data_list)
 
-        pickle.dump((gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts), open(hashval, 'wb'))
+        pickle.dump((gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
         print('dumped')
 
     if args.elev is not None:
@@ -130,7 +128,11 @@ def main():
     else:
         y = np.flipud(np.arange(stacked_data.shape[0]))
 
-    ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
+    ax, buttons = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
+    zf = tracelib.zoom_factory(ax)
+    zf.connect()
+
+    trace_layers(ax, x=total_dist / 1000.0, y=y, elev=elev, buttons=buttons)
     
     hann = signal.hanning(21)
     if args.layers is not None:
@@ -247,8 +249,24 @@ def get_args():
 
 
 def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None):
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.gca()
+    plt.figure(figsize=(12, 8))
+    gs = gridspec.GridSpec(10, 2, left=0.05, bottom=0.05, right=0.99, top=0.99, wspace=0.01, hspace=0.01, width_ratios=(10, 1))
+    ax = plt.subplot(gs[:, 0])
+    axnew = plt.subplot(gs[0, 1])
+    axnext = plt.subplot(gs[1, 1])
+    axprev = plt.subplot(gs[2, 1])
+    axnum = plt.subplot(gs[3, 1])
+    axundo = plt.subplot(gs[4, 1])
+    axsave = plt.subplot(gs[5, 1])
+
+    # axnext = plt.axes([0.91, 0.955, 0.08, 0.04])
+
+    bnew = Button(axnew, 'New')
+    bnext = Button(axnext, 'Next')
+    bundo = Button(axundo, 'Undo')
+    bsave = Button(axsave, 'Save')
+    bprev = Button(axprev, 'Previous')
+
     lims = np.percentile(data, (10, 90))
     X, Y = np.meshgrid(x, y)
     Y *= -1
@@ -257,21 +275,23 @@ def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None):
         # plt.contourf(x, y, np.flipud(data), 2048, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data[color_subset_minind:, :].min(), vmax=data[color_subset_minind:, :].max()))
         # levels = np.linspace(data.min(), data.max(), num=2048)
         try:
-            plt.pcolormesh(X, Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
+            ax.pcolormesh(X, Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
         except:
-            plt.pcolormesh(X[1:], Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
+            ax.pcolormesh(X[1:], Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
         ax.set_xlabel('Distance (km)')
         ax.set_xlim(x.min(), x.max())
         ax.set_ylim(Y.min(), Y.max())
         # ax.invert_yaxis()
     else:
-        # plt.imshow(data, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data.min(), vmax=data.max()))
+        plt.imshow(data, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data.min(), vmax=data.max()), interpolation='nearest')
         # plt.imshow(data, cmap=plt.cm.bwr, norm=LogNorm(vmin=1.0e-6, vmax=data.max()))
         # plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min(), vmax=data.max())
-        plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min() / 10, vmax=data.max() / 10)
+        # plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min() / 10, vmax=data.max() / 10)
     if out_fn is not None:
         plt.savefig(out_fn)
-    return ax
+
+    buttons = {'Next': bnext, 'Undo': bundo, 'Save': bsave, 'Previous': bprev, 'Number': axnum, 'New': bnew}
+    return ax, buttons
 
 
 def data_to_db(data, p1=None):
@@ -287,6 +307,13 @@ def check_args(args):
             list(map(float, args.gp.split(',')))
         except:
             raise gssilib.GssiError('Gainpoints must be a comma separated list')
+
+
+def trace_layers(ax, x=None, y=None, elev=None, buttons=None):
+    lines = tracelib.LineList(ax)
+    if buttons is not None:
+        lines.add_buttons(buttons)
+    plt.show()
 
 
 def read_mat():

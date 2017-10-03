@@ -122,6 +122,7 @@ def read_dzt(fn, rev=False):
 
     rh.reserved = struct.unpack('<31c', lines[66:97])
     rh.dtype = struct.unpack('<c', lines[97:98])[0]
+    print(rh.dtype)
     rh.antname = struct.unpack('<14c', lines[98:112])
 
     rh.chanmask = struct.unpack('<H', lines[112:114])[0]
@@ -130,6 +131,8 @@ def read_dzt(fn, rev=False):
 
     rh.breaks = struct.unpack('<H', lines[rh.rgain:rh.rgain + 2])[0]
     rh.Gainpoints = np.array(struct.unpack('<{:d}i'.format(rh.nrgain), lines[rh.rgain + 2:rh.rgain + 2 + 4 * (rh.nrgain)]))
+    print(rh.Gainpoints)
+    print(rh)
     rh.Gain = 0
     if rh.ntext != 0:
         rh.comments = struct.unpack('<{:d}s'.format(rh.ntext), lines[130 + 2 * rh.Gain: 130 + rh.bytes * rh.Gain + rh.ntext])[0]
@@ -159,9 +162,9 @@ def get_dzg_data(fn, t_srs='sps', rev=False):
     gga = lines[1::3]
     data = nmea_all_info(gga)
     data.scans = np.array(list(map(lambda x: int(x.split(',')[1]), ggis)))
-    data.get_all()
     if rev:
         data.rev()
+    data.get_all()
     if t_srs in ['sps', 'EPSG:3031']:
         data.x, data.y, _ = geolib.ll2sps(data.lon, data.lat, data.z)
     return data
@@ -169,11 +172,56 @@ def get_dzg_data(fn, t_srs='sps', rev=False):
 
 def check_headers(dzts):
     """This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not"""
-    reference = dzts[0].header
-    for attr in 'nsamp', 'antname', 'bytes':
-        for dzt in dzts[1: ]:
-            if not getattr(reference, attr) == getattr(dzt.header, attr):
-                raise GssiError('Incompatible headers')
+    pass
+
+
+def tt_to_m_variable(diel_array, tt):
+    # I am not sure if there is a smart way to do this, so instead I'm going to figure out ho
+    current_layer = 0
+    current_dist = 0.
+    remaining_inc = tt
+
+    # this is complicated in case we get a sparsely sampled file where layers get skipped
+    while current_layer < diel_array.shape[0]:
+        if current_dist + remaining_inc * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]) <= diel_array[current_layer, 0]:
+            y = current_dist + remaining_inc * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1])
+            break
+        else:
+            dist_this_layer = diel_array[current_layer, 0] - current_dist
+            time_for_this_layer = dist_this_layer / 1.0e-9 / 3.0e8 * 2. * np.sqrt(diel_array[current_layer, 1])
+            remaining_inc -= time_for_this_layer
+            current_dist = diel_array[current_layer, 0]
+            current_layer += 1
+    return y
+
+
+def tt_to_m_variable_arr(diel_array, tt_arr):
+    y = np.zeros(tt_arr.shape)
+    # I am not sure if there is a smart way to do this, so instead I'm going to figure out ho
+    current_layer = 0
+    current_dist = 0.
+
+    # this is complicated in case we get a sparsely sampled file where layers get skipped
+    while current_layer < diel_array.shape[0]:
+        bool_arr = np.logical_and(y == 0, current_dist + tt_arr * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]) <= diel_array[current_layer, 0])
+        y[bool_arr] = (current_dist + tt_arr * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]))[bool_arr]
+
+        dist_this_layer = diel_array[current_layer, 0] - current_dist
+        time_for_this_layer = dist_this_layer / 1.0e-9 / 3.0e8 * 2. * np.sqrt(diel_array[current_layer, 1])
+        tt_arr -= time_for_this_layer
+        current_dist = diel_array[current_layer, 0]
+        current_layer += 1
+    return y
+
+
+def load_dielf(fn):
+    with open(fn) as fin:
+        lines = fin.readlines()
+
+    # pad this with some values so we don't go out of bounds
+    lines = list(map(lambda x: list(map(float, x.replace('\ufeff', '').rstrip('\n\r').split(','))), lines))
+    diels = np.array([[0.0, lines[0][1]]] + lines + [[np.inf, lines[-1][1]]])
+    return diels
 
 
 class GssiError(Exception):

@@ -5,7 +5,7 @@ import sys
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-from gssilib import read_dzt
+from gssi_lib import read_dzt
 
 
 def plot_bens_radar(dat, out_fn=None):

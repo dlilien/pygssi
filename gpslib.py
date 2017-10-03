@@ -11,6 +11,8 @@ Some nmea conversion
 """
 from pygeotools.lib import geolib
 import numpy as np
+from scipy.io import loadmat
+from scipy.spatial import cKDTree as KDTree
 
 
 class nmea_info:
@@ -28,6 +30,10 @@ class nmea_info:
 
     def rev(self):
         self.all_data = np.flipud(self.all_data)
+        if self.lat is not None:
+            self.lat = np.flip(self.lat)
+        if self.lon is not None:
+            self.lon = np.flip(self.lon)
 
     def get_all(self):
         self.glat()
@@ -93,6 +99,17 @@ class nmea_info:
         self.dist = np.zeros((len(self.y), 1))
         for i in range(1, len(self.dist)):
             self.dist[i] = self.dist[i - 1] + np.sqrt((self.x[i] - self.x[i - 1]) ** 2.0 + (self.y[i] - self.y[i - 1]) ** 2.0)
+
+
+class kinematic_info:
+
+    def __init__(self, fn):
+        mat = loadmat(fn)
+        x, y, self.elev =  mat['x'], mat['y'], mat['elev']
+        self.xytree = KDTree(np.hstack((x, y)))
+
+    def query(self, x, y):
+        return self.elev[self.xytree.query(np.vstack((x, y)).transpose())[1]]
 
 
 def nmea_to_ll(list_of_sentences):
