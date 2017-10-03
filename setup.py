@@ -28,7 +28,7 @@ if __name__ == '__main__':
           scripts=scripts,
           console_scripts=console_scripts,
           entry_points={'console_scripts': console_scripts},
-          # install_requires=['numpy', 'scipy', 'matplotlib', 'pygeotools'],
+          install_requires=['numpy', 'scipy', 'matplotlib', 'pygeotools'],
           packages=['pygssi', 'pygssi.bin', 'pygssi.lib'],
           include_package_data=True,
           test_suite='nose.collector')
