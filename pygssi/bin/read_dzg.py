@@ -24,11 +24,13 @@ def main():
     basename_dict = {bn: None for bn in basenames}
     for fn, bn in zip(args.fn, basenames):
         basename_dict[bn] = get_dzg_data(fn, t_srs=args.t_srs)
-        dict2shp_pts(os.path.splitext(fn)[0] + '.shp', {'x': basename_dict[bn].x, 'y': basename_dict[bn].y, 'z': basename_dict[bn].z, 'scan': basename_dict[bn].scans, 'filename': [bn for i in range(len(basename_dict[bn].x))]})
+        dict2shp_pts(os.path.splitext(fn)[0] + '.shp', {'x': basename_dict[bn].x, 'y': basename_dict[bn].y, 'z': basename_dict[bn].z,
+                                                        'scan': basename_dict[bn].scans, 'filename': [bn for i in range(len(basename_dict[bn].x))]})
     if len(args.fn) > 1:
         if args.o is None:
             args.o = os.path.split(args.fn[0])[0] + '/' + 'combined_track.shp'
-        dict2shp_pts(args.o, {'x': np.hstack([basename_dict[bn].x for bn in basenames]), 'y': np.hstack([basename_dict[bn].y for bn in basenames]), 'z': np.hstack([basename_dict[bn].z for bn in basenames]), 'scans': np.hstack([basename_dict[bn].scans for bn in basenames]), 'filename': list(sum([[bn for i in range(len(basename_dict[bn].x))] for bn in basenames], []))})
+        dict2shp_pts(args.o, {'x': np.hstack([basename_dict[bn].x for bn in basenames]), 'y': np.hstack([basename_dict[bn].y for bn in basenames]), 'z': np.hstack([basename_dict[
+                     bn].z for bn in basenames]), 'scans': np.hstack([basename_dict[bn].scans for bn in basenames]), 'filename': list(sum([[bn for i in range(len(basename_dict[bn].x))] for bn in basenames], []))})
     return basename_dict
 
 

@@ -61,15 +61,15 @@ def bits(bytes):
 
 
 def to_date(bin, le=True):
-        a = time()
-        bit = [b for b in bits(bin)]
-        a.sec2 = bit_to_int(bit[0:5])
-        a.minute = bit_to_int(bit[5:11])
-        a.hour = bit_to_int(bit[11:16])
-        a.day = bit_to_int(bit[16:21])
-        a.month = bit_to_int(bit[21:25])
-        a.year = bit_to_int(bit[25:32])
-        return a
+    a = time()
+    bit = [b for b in bits(bin)]
+    a.sec2 = bit_to_int(bit[0:5])
+    a.minute = bit_to_int(bit[5:11])
+    a.hour = bit_to_int(bit[11:16])
+    a.day = bit_to_int(bit[16:21])
+    a.month = bit_to_int(bit[21:25])
+    a.year = bit_to_int(bit[25:32])
+    return a
 
 
 def bit_to_int(bits):
@@ -92,7 +92,7 @@ def read_dzt(fn, rev=False):
     if rh.bits == 32:
         rh.s_dattype = 'i'
     elif rh.bits == 16:
-        rh.s_dattype = 'h'   
+        rh.s_dattype = 'h'
     rh.zero = struct.unpack('<h', lines[8:10])[0]
     rh.sps = struct.unpack('<f', lines[10:14])[0]
     rh.spm = struct.unpack('<f', lines[14:18])[0]

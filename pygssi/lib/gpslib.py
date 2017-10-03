@@ -105,7 +105,7 @@ class kinematic_info:
 
     def __init__(self, fn):
         mat = loadmat(fn)
-        x, y, self.elev =  mat['x'], mat['y'], mat['elev']
+        x, y, self.elev = mat['x'], mat['y'], mat['elev']
         self.xytree = KDTree(np.hstack((x, y)))
 
     def query(self, x, y):

@@ -74,7 +74,8 @@ def main():
         gps_stack_number = gps_data[0].scans[1] - gps_data[0].scans[0]
 
         # we are doing this next bit in two steps because of cutoff effects where the length of the gps and the stacked data don't match
-        stack_data_list = [np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1) for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))]
+        stack_data_list = [np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1)
+                                     for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))]
         for dzt in dzts:
             dzt.samp = None
         for i in range(1, len(stack_data_list)):
@@ -99,7 +100,7 @@ def main():
 
     if args.dielf is not None:
         diels = gssilib.load_dielf(args.dielf)
-        
+
         layer_time_increment = dzts[0].header.range / dzts[0].header.nsamp
 
         # I am not sure if there is a smart way to do this, so instead I'm going to figure out ho
@@ -131,7 +132,7 @@ def main():
         y = np.flipud(np.arange(stacked_data.shape[0]))
 
     ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
-    
+
     hann = signal.hanning(21)
     if args.layers is not None:
         with open('layer.csv', 'w') as fout:
@@ -146,7 +147,7 @@ def main():
                     elevs = np.empty((la.shape[0], ))
                     coords = np.empty((la.shape[0], 2))
                     for i in range(la.shape[0]):
-                        dv = np.where(np.logical_and(np.abs(total_lat.flatten() - la[i, indices.index('Lat')]) < 1.0e-5, np.abs(total_lon.flatten() - la[i, indices.index('Long')]) < 1.0e-5))[0] 
+                        dv = np.where(np.logical_and(np.abs(total_lat.flatten() - la[i, indices.index('Lat')]) < 1.0e-5, np.abs(total_lon.flatten() - la[i, indices.index('Long')]) < 1.0e-5))[0]
                         if len(dv) == 0:
                             dist[i] = np.nan
                             elevs[i] = np.nan
@@ -155,8 +156,8 @@ def main():
                         else:
                             dist[i] = total_dist.flatten()[dv[0]]
                             elevs[i] = elev[dv[0]]
-                            coords[i, 0] = total_lon.flatten()[dv[0]] 
-                            coords[i, 1] = total_lat.flatten()[dv[0]] 
+                            coords[i, 0] = total_lon.flatten()[dv[0]]
+                            coords[i, 1] = total_lat.flatten()[dv[0]]
 
                     for linenum in range(1, 20):
                         name = 'Layer {:d} 2-Way Time'.format(linenum)
@@ -178,7 +179,7 @@ def main():
                             with open('line_{:d}.csv'.format(linenum), 'w') as fout:
                                 fout.write('lon, lat, distance, depth, elevation\n')
                                 for i in range(len(depth)):
-                                    fout.write('{:f}, {:f}, {:f}, {:f}, {:f}\n'.format(coords[i, 0], coords[i, 1], dist[i], depth[i], elevs[i])) 
+                                    fout.write('{:f}, {:f}, {:f}, {:f}, {:f}\n'.format(coords[i, 0], coords[i, 1], dist[i], depth[i], elevs[i]))
 
                             pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
                             c = pl[0].get_color()
@@ -187,7 +188,8 @@ def main():
 
                             try:
                                 up50_loc = (-89.539132, 137.130607)
-                                udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
+                                udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / \
+                                    1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
                                 up50 = np.argmin(udist[valid_mask])
                             except:
                                 up50 = -1

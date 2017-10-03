@@ -176,14 +176,14 @@ class LineList:
             line.write(fn)
 
     def _update_number(self, event):
-            try:
-                print('Renumbering to {:d}'.format(int(self.renumber)))
-                self.linetype.lock = self.lines[int(self.renumber)]
-            except:
-                print('Failed to pickup {:s}'.format(self.renumber))
-            finally:
-                self.renumber = ''
-                self.waiting_for_renumber = False
+        try:
+            print('Renumbering to {:d}'.format(int(self.renumber)))
+            self.linetype.lock = self.lines[int(self.renumber)]
+        except:
+            print('Failed to pickup {:s}'.format(self.renumber))
+        finally:
+            self.renumber = ''
+            self.waiting_for_renumber = False
 
     def _update_numtext(self):
         if self.numtext is None or self.linetype.lock is None:
@@ -198,7 +198,7 @@ class LineList:
             self.numtext.set_color(color)
             self.ax.draw_artist(self.numtext)
             self.numtext.set_animated(False)
-        
+
     def on_key(self, event):
         if event.key == 'ctrl+n':
             self._new(event)
