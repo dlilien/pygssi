@@ -10,8 +10,8 @@ Welcome to pygssi's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   doc/lib/index.rst
-   doc/bin/index.rst
+   lib/index.rst
+   bin/index.rst
 
 Indices and tables
 ==================
