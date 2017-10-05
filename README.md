@@ -7,9 +7,9 @@ Requirements
 ------------
 
 Python 2 or 3,
-[numpy](scipy.org)
-[scipy](numpy.org)
-[pygeotools](github.com/dshean/pygeotools)
+[numpy](http://www.scipy.org),
+[scipy](http://numpy.org),
+[pygeotools](http://www.github.com/dshean/pygeotools).
 
 Install
 -------
