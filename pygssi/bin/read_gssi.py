@@ -26,18 +26,6 @@ from ..lib import gpslib
 from ..lib import gssilib
 
 
-def fake_main():
-    parser = get_args()
-    args = parser.parse_args()
-    check_args(args)
-    rev_list = [False if i == '0' else True for i in args.rev.split(',')]
-    dzts = [gssilib.read_dzt(fn, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    gssilib.check_headers(dzts)
-    pickle.dump(dzts, open('pickled_dzt', 'wb'))
-    gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
-    pickle.dump(gps_data, open('pickled_gps', 'wb'))
-
-
 def main():
     parser = get_args()
     args = parser.parse_args()
@@ -55,7 +43,7 @@ def main():
 
     else:
         rev_list = [False if i == '0' else True for i in args.rev.split(',')]
-        gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
+        gps_data = [gssilib.get_dzg_data(os.path.splitext(fn)[0] + '.DZG', t_srs=args.t_srs, rev=rev) for fn, rev in zip(args.fn, rev_list)]
         # Now find the x coordinates for plotting
         for gpd in gps_data:
             gpd.set_proj('sps')

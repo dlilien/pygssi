@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
@@ -156,6 +156,22 @@ def read_dzt(fn, rev=False):
 
 
 def get_dzg_data(fn, t_srs='sps', rev=False):
+    """Read GPS data associated with a GSSI sir4000 file.
+
+    Parameters
+    ----------
+    fn: str
+        A dzg file with ggis and gga strings.
+    t_srs: str, optional
+        Target coordinate reference. Default lat/lon (wgs84)
+    rev: bool, optional
+        Reverse the points in this file (used for concatenating radar files). Default False.
+    
+    Returns
+    -------
+    data: :class:`~pygssi.lib.gpslib.nmea_info`
+    """
+
     with open(fn) as f:
         lines = f.readlines()
     ggis = lines[::3]

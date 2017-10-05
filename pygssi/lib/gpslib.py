@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
@@ -7,7 +7,9 @@
 # Distributed under terms of the MIT license.
 
 """
-Some nmea conversion
+Some classes and functions to handle different types of GPS data
+
+The workhorse of this library, nmea_info, is not designed to be created directly. See `gssilib.get_dzg_data`
 """
 from pygeotools.lib import geolib
 import numpy as np
@@ -16,6 +18,21 @@ from scipy.spatial import cKDTree as KDTree
 
 
 class nmea_info:
+    """Container for general information about lat, lon, etc.
+    
+    Attributes
+    ----------
+    lat: `np.ndarray`
+        wgs84 latitude of points
+    lon: `np.ndarray`
+        wgs84 longitude of points
+    x: `np.ndarray`
+        Projected x coordinates of points
+    y: `np.ndarray`
+        Projected y coordinates of points
+    z: `np.ndarray`
+        Projected z coordinates of points
+    """
     all_data = None
     lat = None
     lon = None
@@ -102,6 +119,7 @@ class nmea_info:
 
 
 class kinematic_info:
+    """This should maybe be private, it takes in a matlab file with x, y, and elev fields and gives something that can be queried for elev at the closest x,y"""
 
     def __init__(self, fn):
         mat = loadmat(fn)
@@ -113,6 +131,7 @@ class kinematic_info:
 
 
 def nmea_to_ll(list_of_sentences):
+    """Take in a list of raw sentences in GGA format and return a lon, lat list"""
     def _gga_sentence_to_ll(sentence):
         vals = sentence.split(',')
         lat = float(vals[2])
@@ -126,7 +145,7 @@ def nmea_to_ll(list_of_sentences):
 
 
 def nmea_all_info(list_of_sentences):
-    """Return an object with the nmea info"""
+    """Return an object with the nmea info from a given list of sentences"""
     def _gga_sentence_split(sentence):
         all = sentence.split(',')
         numbers = list(map(float, all[1:3] + [1] + [all[4]] + [1] + all[6:10] + [all[11]]))

@@ -1,5 +1,5 @@
 trace_gssi
-*********
+**********
 
 .. argparse::
     :module: pygssi.bin.trace_gssi
