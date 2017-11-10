@@ -16,7 +16,7 @@ setuptools
 # I wrote a non-backwards compatible grid reader, so we need to check version
 # Need to support python2 still because ryder does not have python3 c headers
 if __name__ == '__main__':
-    console_scripts = ['read_dzt.py=pygssi.bin.read_dzt:main', 'read_dzg.py=pygssi.bin.read_dzg:main', 'read_gssi.py=pygssi.bin.read_gssi:main', 'trace_gssi.py=pygssi.bin.trace_gssi:main']
+    console_scripts = ['read_dzt.py=pygssi.bin.read_dzt:main', 'read_dzg.py=pygssi.bin.read_dzg:main', 'read_gssi.py=pygssi.bin.read_gssi:main', 'trace_gssi.py=pygssi.bin.trace_gssi:main', 'layers_to_realdepth.py=pygssi.bin.layers_to_realdepth:main']
     scripts = []
     setup(name='pygssi',
           version='0.1a1',
