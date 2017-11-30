@@ -490,7 +490,7 @@ def process_radar(fns,
             ax = axin
             fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
     
-    hann = signal.hanning(31)
+    bb, ab = signal.butter(2, 0.05)
     ldict = {}
     if layers is not None:
         for linefn in layers:
@@ -527,7 +527,7 @@ def process_radar(fns,
                     depth = tt_to_m_variable_arr(diels, la[:, indices.index(name)])
                     depth[depth == 0] = np.nan
                     try:
-                        depth[~np.isnan(depth)][15:-15] = signal.convolve(depth[~np.isnan(depth)], hann, mode='valid', method='direct') / np.sum(hann)
+                        depth[~np.isnan(depth)] = signal.filtfilt(bb, ab, depth[~np.isnan(depth)])
                     except ValueError:
                         pass
 
