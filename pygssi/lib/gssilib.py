@@ -247,7 +247,6 @@ def read_dzt(fn, rev=False):
 
     rh.reserved = struct.unpack('<31c', lines[66:97])
     rh.dtype = struct.unpack('<c', lines[97:98])[0]
-    print(rh.dtype)
     rh.antname = struct.unpack('<14c', lines[98:112])
 
     rh.chanmask = struct.unpack('<H', lines[112:114])[0]
@@ -256,8 +255,6 @@ def read_dzt(fn, rev=False):
 
     rh.breaks = struct.unpack('<H', lines[rh.rgain:rh.rgain + 2])[0]
     rh.Gainpoints = np.array(struct.unpack('<{:d}i'.format(rh.nrgain), lines[rh.rgain + 2:rh.rgain + 2 + 4 * (rh.nrgain)]))
-    print(rh.Gainpoints)
-    print(rh)
     rh.Gain = 0
     if rh.ntext != 0:
         rh.comments = struct.unpack('<{:d}s'.format(rh.ntext), lines[130 + 2 * rh.Gain: 130 + rh.bytes * rh.Gain + rh.ntext])[0]
@@ -365,7 +362,24 @@ def load_dielf(fn):
     return diels
 
 
-def process_radar(fns, rev_list, t_srs='sps', elev_fn=None, pickle_fn=None, axin=None, gp=None, dielf=None, diel=None, layers=None, slope=False, markersize=5, label=False, lw=1):
+def process_radar(fns,
+                  rev_list,
+                  t_srs='sps',
+                  elev_fn=None,
+                  pickle_fn=None,
+                  axin=None,
+                  gp=None,
+                  dielf=None,
+                  diel=None,
+                  layers=None,
+                  slope=False,
+                  markersize=5,
+                  label=False,
+                  lw=1,
+                  plotdata=True,
+                  with_elevs=True,
+                  xoff=0.0,
+                  plot_layer=None):
     hashval = hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
     if pickle_fn is not None or os.path.exists(hashval):
         print('Loading pickled data')
@@ -411,6 +425,8 @@ def process_radar(fns, rev_list, t_srs='sps', elev_fn=None, pickle_fn=None, axin
         stacked_data = np.hstack(stack_data_list)
 
         pickle.dump((gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
+
+    total_dist += xoff
 
     if elev_fn is not None:
         elev = np.concatenate(elev_list).flatten()[:len(total_dist)]
@@ -461,114 +477,131 @@ def process_radar(fns, rev_list, t_srs='sps', elev_fn=None, pickle_fn=None, axin
         fig, ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
         fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
     else:
-        fig, ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
-        ax2 = axin
-        plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None, ax=ax2)
+        if plotdata:
+            if with_elevs:
+                ax = axin
+                plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev, ax=ax)
+                fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
+            else:
+                fig, ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
+                ax2 = axin
+                plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None, ax=ax2)
+        else:
+            ax = axin
+            fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
     
     hann = signal.hanning(31)
+    ldict = {}
     if layers is not None:
-        with open('layer.csv', 'w') as fout:
-            with open('ulayer.csv', 'w') as fout2:
-                for linefn in layers:
-                    with codecs.open(linefn, 'r', 'UTF-8') as fin:
-                        lines = fin.readlines()
-                    la = np.array(list(map(lambda line: list(map(lambda x: np.nan if len(x) == 0 else float(x), line.rstrip('\n\r').split(','))), lines[1:])))
-                    indices = lines[0].rstrip('\n').split(',')
+        for linefn in layers:
+            with codecs.open(linefn, 'r', 'UTF-8') as fin:
+                lines = fin.readlines()
+            la = np.array(list(map(lambda line: list(map(lambda x: np.nan if len(x) == 0 else float(x), line.rstrip('\n\r').split(','))), lines[1:])))
+            indices = lines[0].rstrip('\n').split(',')
 
-                    dist = np.empty((la.shape[0], ))
-                    elevs = np.empty((la.shape[0], ))
-                    coords = np.empty((la.shape[0], 2))
-                    for i in range(la.shape[0]):
-                        dv = np.where(np.logical_and(np.abs(total_lat.flatten() - la[i, indices.index('Lat')]) < 1.0e-5, np.abs(total_lon.flatten() - la[i, indices.index('Long')]) < 1.0e-5))[0] 
-                        if len(dv) == 0:
-                            dist[i] = np.nan
-                            elevs[i] = np.nan
-                            coords[i, 0] = np.nan
-                            coords[i, 1] = np.nan
+            dist = np.empty((la.shape[0], ))
+            elevs = np.empty((la.shape[0], ))
+            coords = np.empty((la.shape[0], 2))
+            for i in range(la.shape[0]):
+                dv = np.where(np.logical_and(np.abs(total_lat.flatten() - la[i, indices.index('Lat')]) < 1.0e-5, np.abs(total_lon.flatten() - la[i, indices.index('Long')]) < 1.0e-5))[0] 
+                if len(dv) == 0:
+                    dist[i] = np.nan
+                    elevs[i] = np.nan
+                    coords[i, 0] = np.nan
+                    coords[i, 1] = np.nan
+                else:
+                    dist[i] = total_dist.flatten()[dv[0]]
+                    elevs[i] = elev[dv[0]]
+                    coords[i, 0] = total_lon.flatten()[dv[0]] 
+                    coords[i, 1] = total_lat.flatten()[dv[0]] 
+            if plot_layer is None:
+                lrange = range(1, 19)
+            else:
+                lrange = [plot_layer]
+
+            for linenum in lrange:
+                name = 'Layer {:d} 2-Way Time'.format(linenum)
+                if name not in indices:
+                    continue
+                else:
+                    depth = tt_to_m_variable_arr(diels, la[:, indices.index(name)])
+                    depth[depth == 0] = np.nan
+                    try:
+                        depth[~np.isnan(depth)][15:-15] = signal.convolve(depth[~np.isnan(depth)], hann, mode='valid', method='direct') / np.sum(hann)
+                    except ValueError:
+                        pass
+
+                    valid_mask = np.logical_and(~np.isnan(dist), ~np.isnan(depth))
+                    if np.any(valid_mask):
+                        slopeval, intercept, _, _, _ = linregress(dist[valid_mask] / 1000., depth[valid_mask])
+                    else:
+                        slopeval, intercept = np.nan, np.nan
+
+                    if axin is None:
+                        with open('line_{:d}.csv'.format(linenum), 'w') as fout:
+                            fout.write('lon, lat, distance, depth, elevation\n')
+                            for i in range(len(depth)):
+                                fout.write('{:f}, {:f}, {:f}, {:f}, {:f}\n'.format(coords[i, 0], coords[i, 1], dist[i], depth[i], elevs[i])) 
+
+                    ldict['layer {:d}'.format(linenum)] = np.hstack((coords, np.vstack((dist, elevs, depth)).transpose()))
+                    
+                    if plot_layer is None:
+                        pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
+                    else:
+                        pl = ax.plot(dist / 1000., elevs - depth, linewidth=1, color='C0')
+                    c = pl[0].get_color()
+                    if slope:
+                        ax.plot(dist / 1000., dist / 1000. * slopeval + intercept, color=pl[0].get_color(), linestyle='-')
+
+                    try:
+                        up50_loc = (-89.539132, 137.130607)
+                        udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
+                        up50 = np.argmin(udist[valid_mask])
+                    except:
+                        up50 = -1
+
+                    if axin is None:
+                        if np.sum(valid_mask) > 0:
+                            ax.plot(dist[valid_mask][up50] / 1000., elevs[valid_mask][up50] - depth[valid_mask][up50], linestyle='none', marker='*', color=c, markersize=markersize)
+                            ax.plot(dist[valid_mask][0] / 1000., elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
+                            # print('Layer {:d} at pole has depth {:f}'.format(linenum, depth[~np.isnan(depth)][0]))
+                            # print('Layer {:d} at USP has depth {:f}'.format(linenum, depth[~np.isnan(depth)][up50]))
+
+                    pl = ax2.plot(dist / 1000., depth, linewidth=lw)
+                    if label:
+                        if linenum < 15:
+                            ln = linenum + 3
                         else:
-                            dist[i] = total_dist.flatten()[dv[0]]
-                            elevs[i] = elev[dv[0]]
-                            coords[i, 0] = total_lon.flatten()[dv[0]] 
-                            coords[i, 1] = total_lat.flatten()[dv[0]] 
+                            ln = linenum - 15
+                        if len(depth[valid_mask]) > 0:
+                            ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
+                        
+                    c = pl[0].get_color()
+                    if slope:
+                        ax2.plot(dist / 1000., dist / 1000. * slope + intercept, color=pl[0].get_color(), linestyle='-')
 
-                    for linenum in range(1, 19):
-                        name = 'Layer {:d} 2-Way Time'.format(linenum)
-                        if name not in indices:
-                            continue
+                    try:
+                        up50_loc = (-89.539132, 137.130607)
+                        udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
+                        if np.min(udist[valid_mask]) < 0.001:
+                            up50 = np.argmin(udist[valid_mask])
                         else:
-                            depth = tt_to_m_variable_arr(diels, la[:, indices.index(name)])
-                            depth[depth == 0] = np.nan
-                            try:
-                                depth[~np.isnan(depth)][15:-15] = signal.convolve(depth[~np.isnan(depth)], hann, mode='valid', method='direct') / np.sum(hann)
-                            except ValueError:
-                                pass
+                            up50 = 99999999
+                    except:
+                        up50 = -1
 
-                            valid_mask = np.logical_and(~np.isnan(dist), ~np.isnan(depth))
-                            if np.any(valid_mask):
-                                slopeval, intercept, _, _, _ = linregress(dist[valid_mask] / 1000., depth[valid_mask])
-                            else:
-                                slopeval, intercept = np.nan, np.nan
-
-                            if axin is None:
-                                with open('line_{:d}.csv'.format(linenum), 'w') as fout:
-                                    fout.write('lon, lat, distance, depth, elevation\n')
-                                    for i in range(len(depth)):
-                                        fout.write('{:f}, {:f}, {:f}, {:f}, {:f}\n'.format(coords[i, 0], coords[i, 1], dist[i], depth[i], elevs[i])) 
-
-                            pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
-                            c = pl[0].get_color()
-                            if slope:
-                                ax.plot(dist / 1000., dist / 1000. * slopeval + intercept, color=pl[0].get_color(), linestyle='-')
-
-                            try:
-                                up50_loc = (-89.539132, 137.130607)
-                                udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
-                                up50 = np.argmin(udist[valid_mask])
-                            except:
-                                up50 = -1
-
-                            if axin is None:
-                                ax.plot(dist[valid_mask][up50] / 1000., elevs[valid_mask][up50] - depth[valid_mask][up50], linestyle='none', marker='*', color=c, markersize=markersize)
-                                ax.plot(dist[valid_mask][0] / 1000., elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
-                                # just pass on if we have nothing not nan
-                                print('Layer {:d} at pole has depth {:f}'.format(linenum, depth[~np.isnan(depth)][0]))
-                                print('Layer {:d} at USP has depth {:f}'.format(linenum, depth[~np.isnan(depth)][up50]))
-                                fout.write('{:d},{:f}\n'.format(linenum, depth[~np.isnan(depth)][0]))
-                                fout2.write('{:d},{:f}\n'.format(linenum, depth[~np.isnan(depth)][up50]))
-
-                            pl = ax2.plot(dist / 1000., depth, linewidth=lw)
-                            if label:
-                                if linenum < 15:
-                                    ln = linenum + 3
-                                else:
-                                    ln = linenum - 15
-                                if len(depth[valid_mask]) > 0:
-                                    ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
-                                
-                            c = pl[0].get_color()
-                            if slope:
-                                ax2.plot(dist / 1000., dist / 1000. * slope + intercept, color=pl[0].get_color(), linestyle='-')
-
-                            try:
-                                up50_loc = (-89.539132, 137.130607)
-                                udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
-                                if np.min(udist[valid_mask]) < 0.001:
-                                    up50 = np.argmin(udist[valid_mask])
-                                else:
-                                    up50 = 99999999
-                            except:
-                                up50 = -1
-
-                            try:
-                                ax2.plot(dist[valid_mask][0] / 1000., depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
-                                ax2.plot(dist[valid_mask][up50] / 1000., depth[valid_mask][up50], linestyle='none', marker='^', color=c, markersize=markersize)
-                            except IndexError:
-                                # if there is no data, don't worry!
-                                pass
+                    try:
+                        ax2.plot(dist[valid_mask][0] / 1000., depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
+                        ax2.plot(dist[valid_mask][up50] / 1000., depth[valid_mask][up50], linestyle='none', marker='^', color=c, markersize=markersize)
+                    except IndexError:
+                        # if there is no data, don't worry!
+                        pass
 
     if axin is None:
         fig.savefig('test.png', dpi=400)
         fig2.savefig('flat_surf.png', dpi=400)
+    
+    return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict
 
 
 def apply_gain(gainpoints, stacked_data):
@@ -596,13 +629,31 @@ def zero_surface(data):
     return data[max_ind:, :], max_ind
 
 
-def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None):
+def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpass=0.01, h_lpass=0.1, v_hpass=0.1, v_lpass=0.2):
     if ax is None:
         fig, ax = plt.subplots(figsize=(12, 8))
     else:
         fig = None
-    lims = np.percentile(data, (10, 90))
     X, Y = np.meshgrid(x, y)
+
+    # now let's do some filtering, start with both high and low passes
+    if h_hpass is not None:
+        b, a = signal.butter(2, h_hpass, btype='high')
+        data = signal.filtfilt(b, a, data, axis=1)
+    if h_lpass is not None:
+        b, a = signal.butter(2, h_lpass, btype='low')
+        data = signal.filtfilt(b, a, data, axis=1)
+    # b_vert, a_vert = signal.iirfilter(11, [0.0001, 200], rs=60, btype='band', analog=True, ftype='cheby2')
+
+    if v_lpass is not None:
+        b_hor, a_hor = signal.butter(2, v_lpass)
+        data = signal.filtfilt(b_hor, a_hor, data, axis=0)
+    if v_hpass is not None:
+        b_hor, a_hor = signal.butter(2, v_hpass, btype='high')
+        data = signal.filtfilt(b_hor, a_hor, data, axis=0)
+
+    lims = np.percentile(data, (10, 90))
+
     if elev is not None:
         Y *= -1
         Y += elev
