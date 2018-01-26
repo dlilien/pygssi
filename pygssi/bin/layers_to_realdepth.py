@@ -9,8 +9,6 @@
 """
 
 """
-import matplotlib.pyplot as plt
-
 from pygeotools.lib import geolib
 from pygssi.lib import gssilib
 import argparse
@@ -35,6 +33,7 @@ def main():
     args = parser.parse_args()
     diels = gssilib.load_dielf(args.dielf)
     hann = signal.hanning(21)
+    print(diels)
 
     matlab_dict = {}
 

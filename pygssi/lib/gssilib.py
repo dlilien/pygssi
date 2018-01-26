@@ -379,7 +379,8 @@ def process_radar(fns,
                   plotdata=True,
                   with_elevs=True,
                   xoff=0.0,
-                  plot_layer=None):
+                  plot_layer=None,
+                  bold_layer=None):
     hashval = hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
     if pickle_fn is not None or os.path.exists(hashval):
         print('Loading pickled data')
@@ -546,12 +547,16 @@ def process_radar(fns,
                     ldict['layer {:d}'.format(linenum)] = np.hstack((coords, np.vstack((dist, elevs, depth)).transpose()))
                     
                     if plot_layer is None:
+                        print(dist / 1000., elevs - depth)
                         pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
                     else:
                         pl = ax.plot(dist / 1000., elevs - depth, linewidth=1, color='C0')
                     c = pl[0].get_color()
                     if slope:
-                        ax.plot(dist / 1000., dist / 1000. * slopeval + intercept, color=pl[0].get_color(), linestyle='-')
+                        da = np.array([0, 100])
+                        ax.plot(da, slopeval * da + intercept, color=pl[0].get_color(), linestyle='-')
+                        print(da, slopeval * da + intercept)
+                        print('{:e} {:d}'.format(slopeval, linenum))
 
                     try:
                         up50_loc = (-89.539132, 137.130607)
@@ -564,10 +569,15 @@ def process_radar(fns,
                         if np.sum(valid_mask) > 0:
                             ax.plot(dist[valid_mask][up50] / 1000., elevs[valid_mask][up50] - depth[valid_mask][up50], linestyle='none', marker='*', color=c, markersize=markersize)
                             ax.plot(dist[valid_mask][0] / 1000., elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
-                            # print('Layer {:d} at pole has depth {:f}'.format(linenum, depth[~np.isnan(depth)][0]))
-                            # print('Layer {:d} at USP has depth {:f}'.format(linenum, depth[~np.isnan(depth)][up50]))
+                            print('Layer {:d} at pole has depth {:f}'.format(linenum, depth[~np.isnan(depth)][0]))
+                            print('Layer {:d} at USP has depth {:f}'.format(linenum, depth[~np.isnan(depth)][up50]))
 
-                    pl = ax2.plot(dist / 1000., depth, linewidth=lw)
+                    if bold_layer is None or linenum != bold_layer:
+                        lwn = lw
+                    else:
+                        lwn = lw * 3
+                    pl = ax2.plot(dist / 1000., depth, linewidth=lwn)
+
                     if label:
                         if linenum < 15:
                             ln = linenum + 3
@@ -578,7 +588,7 @@ def process_radar(fns,
                         
                     c = pl[0].get_color()
                     if slope:
-                        ax2.plot(dist / 1000., dist / 1000. * slope + intercept, color=pl[0].get_color(), linestyle='-')
+                        ax2.plot(dist / 1000., dist / 1000. * slopeval + intercept, color=pl[0].get_color(), linestyle='-')
 
                     try:
                         up50_loc = (-89.539132, 137.130607)
