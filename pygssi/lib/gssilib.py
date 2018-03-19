@@ -9,6 +9,9 @@
 """
 Class definitions and helper functions for gssi info
 """
+from modeltools.lib import plotconstants
+plotconstants.load_constants('sans')
+
 import struct
 import numpy as np
 from .gpslib import nmea_all_info, kinematic_info
