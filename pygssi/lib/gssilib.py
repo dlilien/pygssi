@@ -2,357 +2,29 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
-# Copyright © 2016 dlilien <dlilien@berens>
+# Copyright © 2016 dlilien <dal22@uw.edu>
 #
 # Distributed under terms of the MIT license.
 
 """
 Class definitions and helper functions for gssi info
 """
-from modeltools.lib import plotconstants
-plotconstants.load_constants('sans')
 
-import struct
 import numpy as np
-from .gpslib import nmea_all_info, kinematic_info
+from .gpslib import kinematic_info
+from .gssi_filelib import get_dzg_data, read_dzt, check_headers
+from .conversionlib import gained_decibels, data_to_db, tt_to_m_variable_arr
 import os
 import codecs
 import pickle
 import hashlib
-from math import atan2, degrees
-
 
 import matplotlib.pyplot as plt
 from cycler import cycler
 from scipy import signal
-from scipy.stats import linregress
-from scipy.io import loadmat
-
-from pygeotools.lib import geolib
 
 # No gray
 plt.rc('axes', prop_cycle=(cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']) + cycler('linestyle', ['solid'] * 9)))
-
-
-def labelLine(line, x, label=None, align=True, usex=True, bg=True, **kwargs):
-    """Label a line. Can do it based on x or y position. This is in here for labeling lat/lon
-
-    Parameters
-    ----------
-    line: matplotlib.pyplot.Line2D
-        The line you want to label
-    x: float
-        The x or y position to label (depending on usex)
-    label: str, optional
-        What the label should say
-    usex: bool, optional
-        Label based on x position. If false second argument gives the y position. Default True
-    kwargs: passed on to matplotlib.pyplot.text
-    """
-
-    ax = line.axes
-    xdata = line.get_xdata()
-    ydata = line.get_ydata()
-
-    if ((x < xdata[0]) or (x > xdata[-1])) and usex:
-        xdata = xdata[::-1]
-        reverse_x = True
-        if ((x < xdata[0]) or (x > xdata[-1])):
-            # print('X {:f} outside bounds {:f} {:f}'.format(x, xdata[0], xdata[-1]))
-            return
-    else:
-        reverse_x = False
-
-    if ((x < ydata[0]) or (x > ydata[-1])) and not usex:
-        ydata = ydata[::-1]
-        reverse_y = True
-        if ((x < ydata[0]) or (x > ydata[-1])):
-            # print('Y {:f} outside bounds {:f} {:f}'.format(x, ydata[0], ydata[-1]))
-            return
-    else:
-        reverse_y = False
-
-    # Find corresponding y co-ordinate and angle of the
-    if usex:
-        if reverse_x:
-            for i in range(len(xdata)):
-                if x > xdata[i]:
-                    break
-            xdata = xdata[::-1]
-        else:
-            for i in range(len(xdata)):
-                if x < xdata[i]:
-                    break
-
-        y = ydata[i - 1] + (ydata[i] - ydata[i - 1]) * \
-            (x - xdata[i - 1]) / (xdata[i] - xdata[i - 1])
-    else:
-        y = x
-        if reverse_y:
-            for i in range(len(ydata)):
-                if y > ydata[i]:
-                    break
-            ydata = ydata[::-1]
-        else:
-            for i in range(len(ydata)):
-                if y < ydata[i]:
-                    break
-        x = xdata[i - 1] + (xdata[i] - xdata[i - 1]) * (y - ydata[i - 1]) / (ydata[i] - ydata[i - 1])
-        if np.isnan(x):
-            x = xdata[i]
-
-    if not label:
-        label = line.get_label()
-
-    if align:
-        # Compute the slope
-        dx = xdata[i] - xdata[i - 1]
-        dy = ydata[i] - ydata[i - 1]
-        if dx < 0 and dy > 0:
-            dx = -dx
-            dy = -dy
-        ang = degrees(atan2(dy, dx))
-        if np.abs(90 - ang) < 1.0e-3:
-            ang = -ang
-
-        # Transform to screen co-ordinates
-        pt = np.array([x, y]).reshape((1, 2))
-        trans_angle = ax.transData.transform_angles(np.array((ang,)), pt)[0]
-
-    else:
-        trans_angle = 0
-
-    # Set a bunch of keyword arguments
-    if 'color' not in kwargs:
-        kwargs['color'] = line.get_color()
-
-    if ('horizontalalignment' not in kwargs) and ('ha' not in kwargs):
-        kwargs['ha'] = 'left'
-
-    if ('verticalalignment' not in kwargs) and ('va' not in kwargs):
-        kwargs['va'] = 'center'
-
-    if 'backgroundcolor' not in kwargs:
-        kwargs['backgroundcolor'] = ax.get_facecolor()
-
-    if 'clip_on' not in kwargs:
-        kwargs['clip_on'] = True
-
-    if 'zorder' not in kwargs:
-        kwargs['zorder'] = 2.5
-
-    return ax.text(x, y, label, rotation=trans_angle, **kwargs)
-
-
-class DZT:
-    header = None
-    samp = None
-
-    def __init__(self, header, sample):
-        self.header = header
-        self.samp = sample
-
-
-class time:
-    sec2 = None
-    minute = None
-    hour = None
-    day = None
-    month = None
-    year = None
-
-
-class RH:
-    tag = None
-    data = None
-    nsamp = None
-    bits = None
-    bytes = None
-    us_dattype = None
-    s_dattype = None
-    rgain = None
-    nrgain = None
-    checksum = None
-    antname = None
-
-    def __str__(self):
-        return 'rgain: {:d}, nrgain {:d}'.format(self.rgain, self.nrgain)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-def bits(bytes):
-    for b in bytes:
-        for i in range(8):
-            yield (b >> i) & 1
-
-
-def to_date(bin, le=True):
-    a = time()
-    bit = [b for b in bits(bin)]
-    a.sec2 = bit_to_int(bit[0:5])
-    a.minute = bit_to_int(bit[5:11])
-    a.hour = bit_to_int(bit[11:16])
-    a.day = bit_to_int(bit[16:21])
-    a.month = bit_to_int(bit[21:25])
-    a.year = bit_to_int(bit[25:32])
-    return a
-
-
-def bit_to_int(bits):
-    return sum([(2 ** i) * bit for i, bit in enumerate(bits)])
-
-
-def read_dzt(fn, rev=False):
-    rh = RH()
-    with open(fn, 'rb') as fid:
-        lines = fid.read()
-    rh.tag = struct.unpack('<H', lines[0:2])[0]
-    rh.data = struct.unpack('<H', lines[2:4])[0]
-    rh.nsamp = struct.unpack('<H', lines[4:6])[0]
-    rh.bits = struct.unpack('<H', lines[6:8])[0]
-    rh.bytes = rh.bits // 8
-    if rh.bits == 32:
-        rh.us_dattype = 'I'
-    elif rh.bits == 16:
-        rh.us_dattype = 'H'
-    if rh.bits == 32:
-        rh.s_dattype = 'i'
-    elif rh.bits == 16:
-        rh.s_dattype = 'h'
-    rh.zero = struct.unpack('<h', lines[8:10])[0]
-    rh.sps = struct.unpack('<f', lines[10:14])[0]
-    rh.spm = struct.unpack('<f', lines[14:18])[0]
-    rh.mpm = struct.unpack('<f', lines[18:22])[0]
-    rh.position = struct.unpack('<f', lines[22:26])[0]
-    rh.range = struct.unpack('<f', lines[26:30])[0]
-
-    rh.npass = struct.unpack('<h', lines[30:32])[0]
-
-    create_full = struct.unpack('<4s', lines[32:36])[0]
-    modify_full = struct.unpack('<4s', lines[36:40])[0]
-
-    rh.Create = to_date(create_full)
-    rh.Modify = to_date(modify_full)
-
-    rh.rgain = struct.unpack('<H', lines[40:42])[0]
-    rh.nrgain = struct.unpack('<H', lines[42:44])[0] + 2
-    rh.text = struct.unpack('<H', lines[44:46])[0]
-    rh.ntext = struct.unpack('<H', lines[46:48])[0]
-    rh.proc = struct.unpack('<H', lines[48:50])[0]
-    rh.nproc = struct.unpack('<H', lines[50:52])[0]
-    rh.nchan = struct.unpack('<H', lines[52:54])[0]
-
-    rh.epsr = struct.unpack('<f', lines[54:58])[0]
-    rh.top = struct.unpack('<f', lines[58:62])[0]
-    rh.depth = struct.unpack('<f', lines[62:66])[0]
-
-    rh.reserved = struct.unpack('<31c', lines[66:97])
-    rh.dtype = struct.unpack('<c', lines[97:98])[0]
-    rh.antname = struct.unpack('<14c', lines[98:112])
-
-    rh.chanmask = struct.unpack('<H', lines[112:114])[0]
-    rh.name = struct.unpack('<12c', lines[114:126])
-    rh.chksum = struct.unpack('<H', lines[126:128])[0]
-
-    rh.breaks = struct.unpack('<H', lines[rh.rgain:rh.rgain + 2])[0]
-    rh.Gainpoints = np.array(struct.unpack('<{:d}i'.format(rh.nrgain), lines[rh.rgain + 2:rh.rgain + 2 + 4 * (rh.nrgain)]))
-    rh.Gain = 0
-    if rh.ntext != 0:
-        rh.comments = struct.unpack('<{:d}s'.format(rh.ntext), lines[130 + 2 * rh.Gain: 130 + rh.bytes * rh.Gain + rh.ntext])[0]
-    else:
-        rh.comments = ''
-    if rh.nproc != 0:
-        rh.proccessing = struct.unpack('<{:d}s'.format(rh.nproc), lines[130 + rh.bytes * rh.Gain + rh.ntext:130 + rh.bytes * rh.Gain + rh.ntext + rh.nproc])[0]
-    else:
-        rh.proc = ''
-
-    # d = np.array(struct.unpack('<{:d}'.format((len(lines) - 1024) // 2) + dattype, lines[1024:]))
-    d = np.array(struct.unpack('<{:d}'.format((len(lines) - 36 * 4096) // rh.bytes) + rh.us_dattype, lines[36 * 4096:]))
-    d = d.reshape((rh.nsamp, -1), order='F')
-    d[0, :] = d[2, :]
-    d[1, :] = d[2, :]
-    d = d + rh.zero
-    if rev:
-        d = np.fliplr(d)
-    dat = DZT(rh, d)
-    return dat
-
-
-def get_dzg_data(fn, t_srs='sps', rev=False):
-    """Read GPS data associated with a GSSI sir4000 file.
-
-    Parameters
-    ----------
-    fn: str
-        A dzg file with ggis and gga strings.
-    t_srs: str, optional
-        Target coordinate reference. Default lat/lon (wgs84)
-    rev: bool, optional
-        Reverse the points in this file (used for concatenating radar files). Default False.
-    
-    Returns
-    -------
-    data: :class:`~pygssi.lib.gpslib.nmea_info`
-    """
-
-    with open(fn) as f:
-        lines = f.readlines()
-    ggis = lines[::3]
-    gga = lines[1::3]
-    data = nmea_all_info(gga)
-    data.scans = np.array(list(map(lambda x: int(x.split(',')[1]), ggis)))
-    if rev:
-        data.rev()
-    data.get_all()
-    if t_srs in ['sps', 'EPSG:3031']:
-        data.x, data.y, _ = geolib.ll2sps(data.lon, data.lat, data.z)
-    return data
-
-
-def check_headers(dzts):
-    """This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not"""
-    pass
-
-
-def tt_to_m_variable(diel_array, tt):
-    # I am not sure if there is a smart way to do this, so instead I'm going to figure out ho
-    current_layer = 0
-    current_dist = 0.
-    remaining_inc = tt
-
-    # this is complicated in case we get a sparsely sampled file where layers get skipped
-    while current_layer < diel_array.shape[0]:
-        if current_dist + remaining_inc * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]) <= diel_array[current_layer, 0]:
-            y = current_dist + remaining_inc * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1])
-            break
-        else:
-            dist_this_layer = diel_array[current_layer, 0] - current_dist
-            time_for_this_layer = dist_this_layer / 1.0e-9 / 3.0e8 * 2. * np.sqrt(diel_array[current_layer, 1])
-            remaining_inc -= time_for_this_layer
-            current_dist = diel_array[current_layer, 0]
-            current_layer += 1
-    return y
-
-
-def tt_to_m_variable_arr(diel_array, tt_arr):
-    y = np.zeros(tt_arr.shape)
-    # I am not sure if there is a smart way to do this, so instead I'm going to figure out ho
-    current_layer = 0
-    current_dist = 0.
-
-    # this is complicated in case we get a sparsely sampled file where layers get skipped
-    while current_layer < diel_array.shape[0]:
-        bool_arr = np.logical_and(y == 0, current_dist + tt_arr * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]) <= diel_array[current_layer, 0])
-        y[bool_arr] = (current_dist + tt_arr * 1.0e-9 * 3.0e8 / 2. / np.sqrt(diel_array[current_layer, 1]))[bool_arr]
-
-        dist_this_layer = diel_array[current_layer, 0] - current_dist
-        time_for_this_layer = dist_this_layer / 1.0e-9 / 3.0e8 * 2. * np.sqrt(diel_array[current_layer, 1])
-        tt_arr -= time_for_this_layer
-        current_dist = diel_array[current_layer, 0]
-        current_layer += 1
-    return y
 
 
 def load_dielf(fn):
@@ -383,7 +55,8 @@ def process_radar(fns,
                   with_elevs=True,
                   xoff=0.0,
                   plot_layer=None,
-                  bold_layer=None):
+                  bold_layer=None,
+                  scale_x=1000.0):
     hashval = hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
     if pickle_fn is not None or os.path.exists(hashval):
         print('Loading pickled data')
@@ -478,21 +151,21 @@ def process_radar(fns,
         y = np.flipud(np.arange(stacked_data.shape[0]))
 
     if axin is None:
-        fig, ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
-        fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
+        fig, ax = plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=elev)
+        fig2, ax2 = plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=None)
     else:
         if plotdata:
             if with_elevs:
                 ax = axin
-                plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev, ax=ax)
-                fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
+                plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=elev, ax=ax)
+                fig2, ax2 = plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=None)
             else:
-                fig, ax = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=elev)
+                fig, ax = plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=elev)
                 ax2 = axin
-                plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None, ax=ax2)
+                plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=None, ax=ax2)
         else:
             ax = axin
-            fig2, ax2 = plot_bens_radar(stacked_data, x=total_dist / 1000.0, y=y, elev=None)
+            fig2, ax2 = plot_radar(stacked_data, x=total_dist / scale_x, y=y, elev=None)
     
     bb, ab = signal.butter(2, 0.05)
     ldict = {}
@@ -536,10 +209,6 @@ def process_radar(fns,
                         pass
 
                     valid_mask = np.logical_and(~np.isnan(dist), ~np.isnan(depth))
-                    if np.any(valid_mask):
-                        slopeval, intercept, _, _, _ = linregress(dist[valid_mask] / 1000., depth[valid_mask])
-                    else:
-                        slopeval, intercept = np.nan, np.nan
 
                     if axin is None:
                         with open('line_{:d}.csv'.format(linenum), 'w') as fout:
@@ -550,30 +219,14 @@ def process_radar(fns,
                     ldict['layer {:d}'.format(linenum)] = np.hstack((coords, np.vstack((dist, elevs, depth)).transpose()))
                     
                     if plot_layer is None:
-                        print(dist / 1000., elevs - depth)
-                        pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
+                        pl = ax.plot(dist / scale_x, elevs - depth, linewidth=1)
                     else:
-                        pl = ax.plot(dist / 1000., elevs - depth, linewidth=1, color='C0')
+                        pl = ax.plot(dist / scale_x, elevs - depth, linewidth=1, color='C0')
                     c = pl[0].get_color()
-                    if slope:
-                        da = np.array([0, 100])
-                        ax.plot(da, slopeval * da + intercept, color=pl[0].get_color(), linestyle='-')
-                        print(da, slopeval * da + intercept)
-                        print('{:e} {:d}'.format(slopeval, linenum))
-
-                    try:
-                        up50_loc = (-89.539132, 137.130607)
-                        udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
-                        up50 = np.argmin(udist[valid_mask])
-                    except:
-                        up50 = -1
 
                     if axin is None:
                         if np.sum(valid_mask) > 0:
-                            ax.plot(dist[valid_mask][up50] / 1000., elevs[valid_mask][up50] - depth[valid_mask][up50], linestyle='none', marker='*', color=c, markersize=markersize)
-                            ax.plot(dist[valid_mask][0] / 1000., elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
-                            print('Layer {:d} at pole has depth {:f}'.format(linenum, depth[~np.isnan(depth)][0]))
-                            print('Layer {:d} at USP has depth {:f}'.format(linenum, depth[~np.isnan(depth)][up50]))
+                            ax.plot(dist[valid_mask][0] / scale_x, elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
 
                     if bold_layer is None or linenum != bold_layer:
                         lwn = lw
@@ -588,27 +241,6 @@ def process_radar(fns,
                             ln = linenum - 15
                         if len(depth[valid_mask]) > 0:
                             ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
-                        
-                    c = pl[0].get_color()
-                    if slope:
-                        ax2.plot(dist / 1000., dist / 1000. * slopeval + intercept, color=pl[0].get_color(), linestyle='-')
-
-                    try:
-                        up50_loc = (-89.539132, 137.130607)
-                        udist = (la[:, indices.index('Lat')] - up50_loc[0]) ** 2.0 + (la[:, indices.index('Long')] - up50_loc[1]) ** 2.0 / 1.0e6  # this is scaled in longitude b/c we are so close to pole that it will dominate o/w
-                        if np.min(udist[valid_mask]) < 0.001:
-                            up50 = np.argmin(udist[valid_mask])
-                        else:
-                            up50 = 99999999
-                    except:
-                        up50 = -1
-
-                    try:
-                        ax2.plot(dist[valid_mask][0] / 1000., depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
-                        ax2.plot(dist[valid_mask][up50] / 1000., depth[valid_mask][up50], linestyle='none', marker='^', color=c, markersize=markersize)
-                    except IndexError:
-                        # if there is no data, don't worry!
-                        pass
 
     if axin is None:
         fig.savefig('test.png', dpi=400)
@@ -617,32 +249,13 @@ def process_radar(fns,
     return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict
 
 
-def apply_gain(gainpoints, stacked_data):
-    gp = np.atleast_2d(np.array(list(map(float, gainpoints.split(','))))).transpose()
-    space = stacked_data.shape[0] // (len(gp) - 1)
-    pad_size = stacked_data.shape[0] - (len(gp) - 1) * space
-    gain = np.atleast_2d(np.hstack([np.linspace(gp[i], gp[i + 1], num=space) for i in range(len(gp) - 1)] + [gp[-1] for i in range(pad_size)])).transpose()
-    # Now we convert the gain to decibels
-    gain = 10. ** (gain / 10.)
-    stacked_data *= gain
-    return stacked_data
-
-
-def gained_decibels(gainpoints, stacked_data, p1=None, recenter=True):
-    data = data_to_db(stacked_data, p1=p1)
-    data = apply_gain(gainpoints, data)
-    if recenter:
-        data -= data[data.shape[0] // 2:, :].mean()
-    return data
-
-
 def zero_surface(data):
     avg_val = np.nanmean(data, axis=1)
     max_ind = np.argmax(avg_val)
     return data[max_ind:, :], max_ind
 
 
-def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpass=0.01, h_lpass=0.1, v_hpass=0.1, v_lpass=0.2):
+def plot_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpass=0.01, h_lpass=0.1, v_hpass=0.1, v_lpass=0.2):
     if ax is None:
         fig, ax = plt.subplots(figsize=(12, 8))
     else:
@@ -671,36 +284,20 @@ def plot_bens_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpa
         Y *= -1
         Y += elev
     if x is not None and y is not None:
-        # plt.contourf(x, y, np.flipud(data), 2048, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data[color_subset_minind:, :].min(), vmax=data[color_subset_minind:, :].max()))
-        # levels = np.linspace(data.min(), data.max(), num=2048)
         try:
             ax.pcolormesh(X, Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
-        except:
+        except ValueError:
             ax.pcolormesh(X[1:], Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
         ax.set_xlim(x.min(), x.max())
         ax.set_ylim(Y.min(), Y.max())
         if elev is None:
             ax.invert_yaxis()
     else:
-        # plt.imshow(data, cmap=plt.cm.gray_r, norm=LogNorm(vmin=data.min(), vmax=data.max()))
-        # plt.imshow(data, cmap=plt.cm.bwr, norm=LogNorm(vmin=1.0e-6, vmax=data.max()))
-        # plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min(), vmax=data.max())
-        plt.imshow(data, cmap=plt.cm.gray_r, vmin=data.min() / 10., vmax=data.max() / 10.)
+        plt.imshow(data, cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
+
     if out_fn is not None:
         plt.savefig(out_fn)
     return fig, ax
-
-
-def data_to_db(data, p1=None):
-    if p1 is None:
-        shp = data.shape
-        p1 = data[shp[0] // 2:, :].mean()
-    return 10. * np.log(data / p1)
-
-
-def read_mat():
-    mat = loadmat('kinematic_elevations.mat')
-    return mat['x'], mat['y'], mat['elev']
 
 
 class GssiError(Exception):
