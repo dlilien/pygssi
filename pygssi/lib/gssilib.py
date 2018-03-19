@@ -27,18 +27,8 @@ from scipy import signal
 plt.rc('axes', prop_cycle=(cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']) + cycler('linestyle', ['solid'] * 9)))
 
 
-def load_dielf(fn):
-    with open(fn) as fin:
-        lines = fin.readlines()
-
-    # pad this with some values so we don't go out of bounds
-    lines = list(map(lambda x: list(map(float, x.replace('\ufeff', '').rstrip('\n\r').split(','))), lines))
-    diels = np.array([[0.0, lines[0][1]]] + lines + [[np.inf, lines[-1][1]]])
-    return diels
-
-
 def process_radar(fns,
-                  rev_list,
+                  rev_list=None,
                   t_srs='sps',
                   elev_fn=None,
                   pickle_fn=None,
@@ -47,17 +37,27 @@ def process_radar(fns,
                   dielf=None,
                   diel=None,
                   layers=None,
-                  slope=False,
-                  markersize=5,
                   label=False,
                   lw=1,
                   plotdata=True,
                   with_elevs=True,
                   xoff=0.0,
                   plot_layer=None,
-                  bold_layer=None,
                   scale_x=1000.0):
-    hashval = hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
+    """Read in raw (or pickled) radar data and do a bunch of processing on it
+    
+    Parameters
+    ----------
+    fns: str or iterable of strs
+        The file(s) to process
+    rev_list: list of bools, optional
+        For each file, do you want to reverse it. Default is no reversal (can also handle true or false to do the same to all files)
+
+    """
+    if type(fns) is str:
+        fns = [fns]
+    hashval = 'radar_' + hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
+
     if pickle_fn is not None or os.path.exists(hashval):
         print('Loading pickled data')
         if pickle_fn is not None:
@@ -72,6 +72,11 @@ def process_radar(fns,
          elev_list) = pickle.load(open(hashval, 'rb'))
     else:
         print('Loading data from DZT and DZG files')
+        if rev_list is None:
+            rev_list = [False for fn in fns]
+        elif rev_list in [True, False]:
+            rev_list = [rev_list for fn in fns]
+
         gps_data = [get_dzg_data(os.path.splitext(fn)[0] + '.DZG', t_srs, rev=rev) for fn, rev in zip(fns, rev_list)]
         # Now find the x coordinates for plotting
         for gpd in gps_data:
@@ -110,6 +115,11 @@ def process_radar(fns,
     else:
         elev = np.zeros(total_dist.shape).flatten()
 
+    def zero_surface(data):
+        avg_val = np.nanmean(data, axis=1)
+        max_ind = np.argmax(avg_val)
+        return data[max_ind:, :], max_ind
+
     stacked_data, zero_ind = zero_surface(stacked_data)
 
     if gp is not None:
@@ -118,6 +128,14 @@ def process_radar(fns,
         stacked_data = data_to_db(stacked_data)
 
     if dielf is not None:
+        def load_dielf(fn):
+            with open(fn) as fin:
+                lines = fin.readlines()
+
+            # pad this with some values so we don't go out of bounds
+            lines = list(map(lambda x: list(map(float, x.replace('\ufeff', '').rstrip('\n\r').split(','))), lines))
+            diels = np.array([[0.0, lines[0][1]]] + lines + [[np.inf, lines[-1][1]]])
+            return diels
         diels = load_dielf(dielf)
         
         layer_time_increment = dzts[0].header.range / dzts[0].header.nsamp
@@ -221,38 +239,17 @@ def process_radar(fns,
                     if plot_layer is None:
                         pl = ax.plot(dist / scale_x, elevs - depth, linewidth=1)
                     else:
-                        pl = ax.plot(dist / scale_x, elevs - depth, linewidth=1, color='C0')
-                    c = pl[0].get_color()
+                        pl = ax.plot(dist / scale_x, elevs - depth, linewidth=1)
 
-                    if axin is None:
-                        if np.sum(valid_mask) > 0:
-                            ax.plot(dist[valid_mask][0] / scale_x, elevs[valid_mask][0] - depth[valid_mask][0], linestyle='none', marker='*', color=c, markersize=markersize)
+                    pl = ax2.plot(dist / scale_x, depth, linewidth=lw)
 
-                    if bold_layer is None or linenum != bold_layer:
-                        lwn = lw
-                    else:
-                        lwn = lw * 3
-                    pl = ax2.plot(dist / 1000., depth, linewidth=lwn)
-
-                    if label:
-                        if linenum < 15:
-                            ln = linenum + 3
-                        else:
-                            ln = linenum - 15
-                        if len(depth[valid_mask]) > 0:
-                            ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
+                    ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(linenum), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
 
     if axin is None:
         fig.savefig('test.png', dpi=400)
         fig2.savefig('flat_surf.png', dpi=400)
     
     return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict
-
-
-def zero_surface(data):
-    avg_val = np.nanmean(data, axis=1)
-    max_ind = np.argmax(avg_val)
-    return data[max_ind:, :], max_ind
 
 
 def plot_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpass=0.01, h_lpass=0.1, v_hpass=0.1, v_lpass=0.2):
@@ -298,7 +295,3 @@ def plot_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, h_hpass=0.
     if out_fn is not None:
         plt.savefig(out_fn)
     return fig, ax
-
-
-class GssiError(Exception):
-    pass

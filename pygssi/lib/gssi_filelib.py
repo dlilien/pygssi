@@ -14,7 +14,6 @@ import struct
 import numpy as np
 from .gpslib import nmea_all_info
 from .conversionlib import to_date
-from .gssilib import GssiError
 from pygeotools.lib import geolib
 
 
@@ -40,20 +39,21 @@ class RH:
 
 
 class DZT:
+    """
+    A DZT file
+
+    Attributes
+    ----------
+    header:  :class:`~pygssi.lib.gssi_filelib.RH`
+        The header of the file, with lot of useful (maybe) info
+    samp: numpy.ndarray
+        An array containing the actual returns (not normalized, so won't plot well as-is
+    """
     header = None
     samp = None
 
     def __init__(self, header, sample):
-        """
-        A DZT file
 
-        Attributes
-        ----------
-        header:  :class:`~pygssi.lib.gssi_filelib.RH`
-            The header of the file, with lot of useful (maybe) info
-        samp: numpy.ndarray
-            An array containing the actual returns (not normalized, so won't plot well as-is
-        """
         self.header = header
         self.samp = sample
 
@@ -193,3 +193,7 @@ def check_headers(dzts):
     """This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not"""
     if False:
         raise GssiError
+
+
+class GssiError(Exception):
+    pass
