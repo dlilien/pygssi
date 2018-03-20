@@ -10,7 +10,7 @@
 A bunch of radar-related conversions
 """
 import numpy as np
-from datetime import datetime, tzinfo
+from datetime import datetime
 
 
 def to_date(bin, le=True):
@@ -36,7 +36,7 @@ def to_date(bin, le=True):
         return sum([(2 ** i) * bit for i, bit in enumerate(bits)])
 
     bit = [b for b in bits(bin)]
-    return datetime(bit_to_int(bit[25:32]), bit_to_int(bit[21:25]), bit_to_int(bit[16:21]), hour=bit_to_int(bit[11:16]), minute=bit_to_int(bit[5:11]), second=bit_to_int(bit[0:5]), tzinfo=tzinfo.utcoffset(0))
+    return datetime(bit_to_int(bit[25:32]) + 1980, bit_to_int(bit[21:25]), bit_to_int(bit[16:21]), hour=bit_to_int(bit[11:16]), minute=bit_to_int(bit[5:11]), second=bit_to_int(bit[0:5]) * 2)
 
 
 def tt_to_m_variable_arr(diel_array, tt_arr, conv_to_sec=1.0e-9):

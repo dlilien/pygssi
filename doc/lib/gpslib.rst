@@ -1,5 +1,5 @@
-GSSI radar file library
-=======================
+GPS reading library
+===================
 
 .. automodule:: pygssi.lib.gpslib
     :members:

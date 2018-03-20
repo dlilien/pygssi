@@ -10,10 +10,15 @@
 Just define some classes and helper reader functions for gssi data
 """
 
+import os.path
+import hashlib
 import struct
+import pickle
 import numpy as np
+
 from .gpslib import nmea_all_info
 from .conversionlib import to_date
+from .gpslib import kinematic_info
 from pygeotools.lib import geolib
 
 
@@ -83,7 +88,7 @@ def read_dzt(fn, rev=False):
     rh.bits = struct.unpack('<H', lines[6:8])[0]
     rh.bytes = rh.bits // 8
 
-    # I think this implicitly detects if you are using a SIR2000 or SIR3000
+    # I think this implicitly detects if you are using a SIR3000 or SIR4000
     if rh.bits == 32:
         rh.us_dattype = 'I'
     elif rh.bits == 16:
@@ -106,7 +111,11 @@ def read_dzt(fn, rev=False):
     modify_full = struct.unpack('<4s', lines[36:40])[0]
 
     rh.Create = to_date(create_full)
-    rh.Modify = to_date(modify_full)
+    try:
+        rh.Modify = to_date(modify_full)
+    except ValueError:
+        # I think the modification times are not actually good?
+        rh.Modify = rh.Create
 
     rh.rgain = struct.unpack('<H', lines[40:42])[0]
     rh.nrgain = struct.unpack('<H', lines[42:44])[0] + 2
@@ -166,7 +175,7 @@ def get_dzg_data(fn, t_srs='sps', rev=False):
     
     Returns
     -------
-    data: :class:`~pygssi.lib.gpslib.nmea_info`
+    data: :class:`~pygssi.lib.gpslib.NMEA`
     """
 
     with open(fn) as f:
@@ -193,6 +202,79 @@ def check_headers(dzts):
     """This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not"""
     if False:
         raise GssiError
+
+
+def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps'):
+    """Read in files (and try to get their GPS info too)
+
+    Parameters
+    ----------
+    fns: iterable
+        The files to read
+    revs: iterable
+        Reverse each file? (must be same length as fns)
+    pickle_fn: str, optional
+        Try to load pre-packaged results from this filename
+    elev_fn: str, optional
+        Load kinematic GPS data from this matlab file so that you don't use the crappy ones from the GPS on the radar
+    t_srs: str, optional
+        Load things into this projection (can convert to sps/EPSG:3031 or nps/EPSG:3413 from wgs84
+
+    Returns
+    -------
+    gps_data: list of :class:`~pygssi.lib.gpslib.NMEA`
+        GPS data for each of the input files
+    """
+
+    if len(fns) != len(revs):
+        raise ValueError('Each file must have a bool to say whether to reverse it')
+    hashval = 'radar_' + hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
+    if pickle_fn is not None or os.path.exists(hashval):
+        print('Loading pickled data')
+        if pickle_fn is not None:
+            hashval = pickle_fn
+        (gps_data,
+         stacked_data,
+         total_lat,
+         total_lon,
+         total_dist,
+         dzts,
+         elev_list) = pickle.load(open(hashval, 'rb'))
+    else:
+        print('Loading data from DZT and DZG files')
+        gps_data = [get_dzg_data(os.path.splitext(fn)[0] + '.DZG', t_srs, rev=rev) for fn, rev in zip(fns, revs)]
+
+        # Now find the x coordinates for plotting
+        for gpd in gps_data:
+            gpd.set_proj('sps')
+            gpd.get_dist()
+        print('GPS data read')
+
+        if elev_fn is not None:
+            kinematic_data = kinematic_info(elev_fn)
+            elev_list = [kinematic_data.query(gpd.x, gpd.y) for gpd in gps_data]
+            print('Read in elevations from kinematic GPS')
+        else:
+            elev_list = None
+
+        total_dist = np.hstack([gps_data[0].dist.flatten()[0:]] + [gps_data[i].dist.flatten()[1:] + np.sum([gps_data[j].dist.flatten()[-1] for j in range(i)]) for i in range(1, len(gps_data))])
+        total_lat = np.hstack([gps_data[0].lat.flatten()[0:]] + [gps_data[i].lat.flatten()[1:] for i in range(1, len(gps_data))])
+        total_lon = np.hstack([gps_data[0].lon.flatten()[0:]] + [gps_data[i].lon.flatten()[1:] for i in range(1, len(gps_data))])
+        dzts = [read_dzt(fn, rev=rev) for fn, rev in zip(fns, revs)]
+        check_headers(dzts)
+        gps_stack_number = gps_data[0].scans[1] - gps_data[0].scans[0]
+
+        # we are doing this next bit in two steps because of cutoff effects where the length of the gps and the stacked data don't match
+        stack_data_list = [np.array([np.nanmean(dzts[j].samp[:, i * gps_stack_number:(i + 1) * gps_stack_number], axis=1) for i in range(dzts[j].samp.shape[1] // gps_stack_number)]).transpose() for j in range(len(dzts))]
+        for dzt in dzts:
+            dzt.samp = None
+        for i in range(1, len(stack_data_list)):
+            if stack_data_list[i].shape[1] == gps_data[i].dist.shape[0]:
+                stack_data_list[i] = stack_data_list[i][:, :-1]
+        stacked_data = np.hstack(stack_data_list)
+        pickle.dump((gps_data, stacked_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
+    lldist = np.vstack((total_lon, total_lat, total_dist)).transpose()
+    return gps_data, stacked_data, lldist, dzts, elev_list
 
 
 class GssiError(Exception):
