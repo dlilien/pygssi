@@ -19,8 +19,7 @@ def main():
     parser = get_args()
     args = parser.parse_args()
     check_args(args)
-    rev_list = [False if i == '0' else True for i in args.rev.split(',')]
-    gssilib.process_and_plot(args.fn, rev_list, t_srs=args.t_srs, elev_fn=args.elev, pickle_fn=args.pickle, axin=None, gp=args.gp, layers=args.layers, diel=args.diel)
+    gssilib.process_and_plot(args.fn, args.rev, t_srs=args.t_srs, elev_fn=args.elev, pickle_fn=args.pickle, axin=None, gp=args.gp, layers=args.layers, diel=args.diel)
 
 
 def get_args():
@@ -47,7 +46,7 @@ def check_args(args):
 
     try:
         args.diel = float(args.diel)
-    except ValueError:
+    except TypeError:
         pass
 
 

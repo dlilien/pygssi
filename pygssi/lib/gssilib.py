@@ -175,7 +175,7 @@ def process_radar(fns,
     if elev_list is not None:
         elev = np.concatenate(elev_list).flatten()[:lldist.shape[0]]
     else:
-        elev = np.zeros(lldist.shape[0]).flatten()
+        elev = None
 
     data, zero_ind = zero_surface(data)
 
@@ -305,7 +305,9 @@ def plot_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, xlabel='Di
         Y += elev
 
     lims = np.percentile(data, (10, 90))
-    if x is not None and y is not None:
+
+    # we need to make sure that y is not just the trace number. This is a little risky if the dielectric constant is bad news, but it should be fine
+    if x is not None and y is not None and not np.all(y == np.array(list(range(len(y) - 1, -1, -1)))):
         try:
             ax.pcolormesh(X, Y, np.flipud(data), cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
         except ValueError:
