@@ -123,7 +123,8 @@ def process_radar(fns,
                   gp=None,
                   diel=None,
                   xoff=0.0,
-                  filter_dat=True):
+                  filter_dat=True,
+                  cache=False):
     """Read in raw (or pickled) radar data and do a bunch of processing on it
     
     Parameters
@@ -144,6 +145,8 @@ def process_radar(fns,
         offset all the x values by this much (useful for plotting)
     filter_dat: bool, optional
         hit the data with the defaults of :func:`~pygssi.lib.gssilib.filter_data`. If you want custom values, you should take the data returned and hit it with the custom filter.
+    cache: bool, optional
+        pickle results for fast future use (default False)
 
     Returns
     -------
@@ -165,7 +168,7 @@ def process_radar(fns,
     elif rev_list in [True, False]:
         rev_list = [rev_list for fn in fns]
 
-    _, data, lldist, dzts, elev_list = read(fns, rev_list, elev_fn=elev_fn, pickle_fn=pickle_fn, t_srs=t_srs)
+    _, data, lldist, dzts, elev_list = read(fns, rev_list, elev_fn=elev_fn, pickle_fn=pickle_fn, t_srs=t_srs, cache=cache)
 
     lldist[2, :] = lldist[2, :] + xoff
 

@@ -107,12 +107,12 @@ def read_dzt(fn, rev=False):
 
     rh.npass = struct.unpack('<h', lines[30:32])[0]
 
-    create_full = struct.unpack('<4s', lines[32:36])[0]
-    modify_full = struct.unpack('<4s', lines[36:40])[0]
+    rh.create_full = struct.unpack('<4s', lines[32:36])[0]
+    rh.modify_full = struct.unpack('<4s', lines[36:40])[0]
 
-    rh.Create = to_date(create_full)
+    rh.Create = to_date(rh.create_full)
     try:
-        rh.Modify = to_date(modify_full)
+        rh.Modify = to_date(rh.modify_full)
     except ValueError:
         # I think the modification times are not actually good?
         rh.Modify = rh.Create
@@ -145,20 +145,84 @@ def read_dzt(fn, rev=False):
     else:
         rh.comments = ''
     if rh.nproc != 0:
-        rh.proccessing = struct.unpack('<{:d}s'.format(rh.nproc), lines[130 + rh.bytes * rh.Gain + rh.ntext:130 + rh.bytes * rh.Gain + rh.ntext + rh.nproc])[0]
+        rh.processing = struct.unpack('<{:d}s'.format(rh.nproc), lines[130 + rh.bytes * rh.Gain + rh.ntext:130 + rh.bytes * rh.Gain + rh.ntext + rh.nproc])[0]
     else:
-        rh.proc = ''
+        rh.processing = ''
 
     # d = np.array(struct.unpack('<{:d}'.format((len(lines) - 1024) // 2) + dattype, lines[1024:]))
     d = np.array(struct.unpack('<{:d}'.format((len(lines) - 36 * 4096) // rh.bytes) + rh.us_dattype, lines[36 * 4096:]))
     d = d.reshape((rh.nsamp, -1), order='F')
-    d[0, :] = d[2, :]
-    d[1, :] = d[2, :]
+    for i in range(rh.zero + 1):
+        d[i, :] = d[rh.zero + 1, :]
     d = d + rh.zero
     if rev:
         d = np.fliplr(d)
     dat = DZT(rh, d)
     return dat
+
+
+def write_dzt(fn, dzt):
+    """
+    Write a dzt file
+
+    Parameters
+    ----------
+    fn: str
+        File to parse
+    dzt: :class:`~pygssi.lib.gssi_filelib.DZT`
+        The data to write
+    """
+
+    rh = dzt.header
+    with open(fn, 'wb') as fid:
+        fid.write(struct.pack('<H', rh.tag))
+        fid.write(struct.pack('<H', rh.data))
+        fid.write(struct.pack('<H', rh.nsamp))
+        fid.write(struct.pack('<H', rh.bits))
+        fid.write(struct.pack('<h', rh.zero))
+        fid.write(struct.pack('<f', rh.sps))
+        fid.write(struct.pack('<f', rh.spm))
+        fid.write(struct.pack('<f', rh.mpm))
+        fid.write(struct.pack('<f', rh.position))
+        fid.write(struct.pack('<f', rh.range))
+        fid.write(struct.pack('<h', rh.npass))
+        fid.write(struct.pack('<4s', rh.create_full))
+        fid.write(struct.pack('<4s', rh.modify_full))
+        fid.write(struct.pack('<H', rh.rgain))
+        fid.write(struct.pack('<H', rh.nrgain - 2))
+        fid.write(struct.pack('<H', rh.text))
+        fid.write(struct.pack('<H', rh.ntext))
+        fid.write(struct.pack('<H', rh.proc))
+        fid.write(struct.pack('<H', rh.nproc))
+        fid.write(struct.pack('<H', rh.nchan))
+        fid.write(struct.pack('<f', rh.epsr))
+        fid.write(struct.pack('<f', rh.top))
+        fid.write(struct.pack('<f', rh.depth))
+        fid.write(struct.pack('<31c', *rh.reserved))
+        fid.write(struct.pack('<c', rh.dtype))
+        fid.write(struct.pack('<14c', *rh.antname))
+        fid.write(struct.pack('<H', rh.chanmask))
+        fid.write(struct.pack('<12c', *rh.name))
+        fid.write(struct.pack('<H', rh.chksum))
+
+        blank = rh.rgain - 130
+        fid.write(struct.pack('<{:d}H'.format(blank // 2), *([0] * (blank // 2))))
+
+        fid.write(struct.pack('<H', rh.breaks))
+        fid.write(struct.pack('<{:d}i'.format(rh.nrgain), *rh.Gainpoints))
+
+        if rh.ntext != 0:
+            fid.write(struct.pack('<{:d}s'.format(rh.ntext), *rh.comments))
+        if rh.nproc != 0:
+            fid.write(struct.pack('<{:d}s'.format(rh.ntext), rh.processing))
+
+    # we need to fill in a ton of blank space here: first, find its size
+    blank = 36 * 4096 - os.path.getsize(fn)
+    
+    with open(fn, 'ab') as fid:
+        fid.write(struct.pack('<{:d}H'.format(blank // 2), *([0] * (blank // 2))))
+        ds = dzt.samp.shape[0] * dzt.samp.shape[1]
+        fid.write(struct.pack('<{:d}'.format(ds) + rh.us_dattype, *(dzt.samp.reshape((ds, ), order='F') - rh.zero)))
 
 
 def get_dzg_data(fn, t_srs='sps', rev=False):
@@ -204,7 +268,7 @@ def check_headers(dzts):
         raise GssiError
 
 
-def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps'):
+def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps', cache=False):
     """Read in files (and try to get their GPS info too)
 
     Parameters
@@ -219,6 +283,8 @@ def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps'):
         Load kinematic GPS data from this matlab file so that you don't use the crappy ones from the GPS on the radar
     t_srs: str, optional
         Load things into this projection (can convert to sps/EPSG:3031 or nps/EPSG:3413 from wgs84
+    cache: bool, optional
+        pickle results for future use
 
     Returns
     -------
@@ -272,7 +338,8 @@ def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps'):
             if stack_data_list[i].shape[1] == gps_data[i].dist.shape[0]:
                 stack_data_list[i] = stack_data_list[i][:, :-1]
         stacked_data = np.hstack(stack_data_list)
-        pickle.dump((gps_data, stacked_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
+        if cache:
+            pickle.dump((gps_data, stacked_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
     lldist = np.vstack((total_lon, total_lat, total_dist)).transpose()
     return gps_data, stacked_data, lldist, dzts, elev_list
 
