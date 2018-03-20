@@ -91,7 +91,7 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Process and plot binary GSSI files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="gssi_filelib.html">Classes and functions for GSSI file reading</a></li>
 <li class="toctree-l2"><a class="reference internal" href="conversionlib.html">Conversions of radar data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gpslib.html">GSSI radar file library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gpslib.html">GPS reading library</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tracelib.html">Layer Tracing Library</a></li>
 </ul>
 </li>
@@ -145,6 +145,33 @@
   <div class="section" id="module-pygssi.lib.gssilib">
 <span id="process-and-plot-binary-gssi-files"></span><h1>Process and plot binary GSSI files<a class="headerlink" href="#module-pygssi.lib.gssilib" title="Permalink to this headline">¶</a></h1>
 <p>Class definitions and helper functions for gssi info</p>
+<p>The workhorses here are <a class="reference internal" href="#pygssi.lib.gssilib.process_and_plot" title="pygssi.lib.gssilib.process_and_plot"><code class="xref py py-func docutils literal"><span class="pre">process_and_plot()</span></code></a> and <a class="reference internal" href="#pygssi.lib.gssilib.process_radar" title="pygssi.lib.gssilib.process_radar"><code class="xref py py-func docutils literal"><span class="pre">process_radar()</span></code></a>, which will handle a lot of the steps of taking a raw DZG file and plotting it and/or returning it in a useful form</p>
+<dl class="function">
+<dt id="pygssi.lib.gssilib.apply_diel">
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">apply_diel</code><span class="sig-paren">(</span><em>diel</em>, <em>data</em>, <em>layer_time_increment=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#apply_diel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.apply_diel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply some kind of dielectric model to data</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>diel</strong> (<em>float</em><em>, </em><em>numpy.ndarray</em><em>, </em><em>str</em><em>, or </em><em>None</em>) &#8211; diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</li>
+<li><strong>data</strong> (<em>numpy.ndarray</em>) &#8211; The data that we are rescaling</li>
+<li><strong>layer_time_increment</strong> (<em>float</em>) &#8211; size of a vertical increment in seconds</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li><strong>y</strong> (<em>nx1 array</em>) &#8211; The depths of each vertical pixel</li>
+<li><strong>diels</strong> (<em>mx2 array</em>) &#8211; Depth and dielectric constant pairs</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="function">
 <dt id="pygssi.lib.gssilib.filter_data">
 <code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">filter_data</code><span class="sig-paren">(</span><em>data</em>, <em>h_hpass=0.01</em>, <em>h_lpass=0.1</em>, <em>v_hpass=0.1</em>, <em>v_lpass=0.2</em>, <em>order=2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#filter_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.filter_data" title="Permalink to this definition">¶</a></dt>
@@ -170,6 +197,50 @@
 </dd></dl>
 
 <dl class="function">
+<dt id="pygssi.lib.gssilib.load_diel_file">
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">load_diel_file</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#load_diel_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.load_diel_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load dielectric constant from file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>fn</strong> (<em>str</em>) &#8211; Should be a two column csv with the depths in the left column and the values in the right</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssilib.plot_layers">
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">plot_layers</code><span class="sig-paren">(</span><em>layer_fns</em>, <em>ax_flat</em>, <em>lldist</em>, <em>diels</em>, <em>ax_variablesurf=None</em>, <em>linewidth=1</em>, <em>scale_x=1000.0</em>, <em>z=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#plot_layers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.plot_layers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot layers on axes given</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>layer_fns</strong> (<em>list</em>) &#8211; List of files containing layers to plot. This is designed to be used in conjunction with the radan tracing software, so the format is a 1-line header with &#8220;Dist.(m),Lat,Long,Elev(m),Time,Layer 1 2-Way Time,Layer 2 2-Way Time...&#8221;.</li>
+<li><strong>ax_flat</strong> (<em>matplotlib.pyplot.Axis</em>) &#8211; Axis in depth (or TWTT) space on which to plot</li>
+<li><strong>lldist</strong> (<em>mx3 numpy.ndarray</em>) &#8211; The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</li>
+<li><strong>diels</strong> (<em>lx2 numpy.ndarray</em>) &#8211; Depth, dielectric constant pairs.</li>
+<li><strong>ax_variablesurf</strong> (<em>matplotlib.pyplot.Axis</em><em>, </em><em>optional</em>) &#8211; Axis in elevation space on which to plot</li>
+<li><strong>linewidth</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Line width of layers plotted.</li>
+<li><strong>scale_x</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Divide distance by this amount for x axis. Default is 1000.0 to make polar stereographic plots in km.</li>
+<li><strong>z</strong> (<em>mx1 numpy.ndarray</em><em>, </em><em>optional</em>) &#8211; Elevations for each trace. Ignored if no ax_variablesurf.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>ldict</strong> &#8211; A dictionary of layer names and depths. None if no layers are input</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">dict</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="pygssi.lib.gssilib.plot_radar">
 <code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">plot_radar</code><span class="sig-paren">(</span><em>data</em>, <em>x=None</em>, <em>y=None</em>, <em>out_fn=None</em>, <em>elev=None</em>, <em>ax=None</em>, <em>xlabel='Distance (km)'</em>, <em>ylabel='Depth (m)'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#plot_radar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.plot_radar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot an array of radar data</p>
@@ -184,7 +255,8 @@
 <li><strong>out_fn</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Save to this file (default None/don&#8217;t save)</li>
 <li><strong>elev</strong> (<em>numpy.ndarray</em>) &#8211; An nx1 array y values of surface height. Depths are subtracted from this before plotting if not None. Ignored if x or y is None.</li>
 <li><strong>ax</strong> (<em>matplotlib.pyplot.Axis</em>) &#8211; Plot on these axes rather than creating a new figure (default is None/create figure)</li>
-<li><strong>ylabel</strong> (<em>xlabel</em><em>,</em><em></em>) &#8211; </li>
+<li><strong>xlabel</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Labels for the x-axis (overridden if x or y are None).</li>
+<li><strong>ylabel</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Labels for the y-axis (overridden if x or y are None).</li>
 </ul>
 </td>
 </tr>
@@ -200,17 +272,99 @@
 </dd></dl>
 
 <dl class="function">
+<dt id="pygssi.lib.gssilib.process_and_plot">
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">process_and_plot</code><span class="sig-paren">(</span><em>fns</em>, <em>rev_list=None</em>, <em>t_srs='sps'</em>, <em>elev_fn=None</em>, <em>pickle_fn=None</em>, <em>gp=None</em>, <em>diel=None</em>, <em>xoff=0.0</em>, <em>filter_dat=True</em>, <em>axin=None</em>, <em>with_elevs=True</em>, <em>layers=None</em>, <em>lw=1</em>, <em>scale_x=1000.0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#process_and_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.process_and_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read in raw (or pickled) radar data and do a bunch of processing on it, then plot it up</p>
+<p>This will always do two plots, one with a variable surface and one without, though if there is no elevation information the one with a variable surface is not saved.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fns</strong> (<em>str</em><em> or </em><em>iterable of strs</em>) &#8211; The file(s) to process</li>
+<li><strong>rev_list</strong> (<em>list of bools</em><em>, </em><em>optional</em>) &#8211; For each file, do you want to reverse it. Default is no reversal (can also handle true or false to do the same to all files)</li>
+<li><strong>t_srs</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Try to project the output to this coordinate system</li>
+<li><strong>elev_fn</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; A .mat file containing fields x, y, z for the surface of the radar</li>
+<li><strong>gp</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; A string of comma-separated floats for the gainpoints. These get evenly distributed across depths. They are applied exponentially</li>
+<li><strong>diel</strong> (<em>float</em><em>, </em><em>numpy.ndarray</em><em>, </em><em>str</em><em>, or </em><em>None</em>) &#8211; diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</li>
+<li><strong>xoff</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; offset all the x values by this much (useful for plotting)</li>
+<li><strong>filter_dat</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; hit the data with the defaults of <a class="reference internal" href="#pygssi.lib.gssilib.filter_data" title="pygssi.lib.gssilib.filter_data"><code class="xref py py-func docutils literal"><span class="pre">filter_data()</span></code></a>. If you want custom values, you should take the data returned and hit it with the custom filter.</li>
+<li><strong>axin</strong> (<em>matplotlib.pyplot.Axis</em><em>, </em><em>optional</em>) &#8211; An axis to plot on. If with_elevs, then this is the variable surface axis. If not, it is the flat axis.</li>
+<li><strong>with_elevs</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; If True (default), the axis passed in is for the variable surface.</li>
+<li><strong>layers</strong> (<em>list</em><em>, </em><em>optional</em>) &#8211; List of files containing layers to plot. This is designed to be used in conjunction with the radan tracing software, so the format is a 1-line header with &#8220;Dist.(m),Lat,Long,Elev(m),Time,Layer 1 2-Way Time,Layer 2 2-Way Time...&#8221;.</li>
+<li><strong>lw</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Line width of layers plotted.</li>
+<li><strong>scale_x</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Divide distance by this amount for x axis. Default is 1000.0 to make polar stereographic plots in km.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li><strong>data</strong> (<em>nxm numpy.ndarray</em>) &#8211; The radar data (in decibels, possibly gained)</li>
+<li><strong>lldist</strong> (<em>mx3 numpy.ndarray</em>) &#8211; The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</li>
+<li><strong>elev</strong> (<em>mx1 numpy.ndarray</em>) &#8211; Elevations for each trace if kinematic GPS data was input, else None</li>
+<li><strong>z</strong> (<em>nx1 numpy.ndarray</em>) &#8211; The depth of each point. Just 0, 1... if no dielectric constant is given</li>
+<li><strong>diels</strong> (<em>lx2 numpy.ndarray</em>) &#8211; Depth, dielectric constant pairs.</li>
+<li><strong>ldict</strong> (<em>dict</em>) &#8211; A dictionary of layer names and depths. None if no layers are input</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="pygssi.lib.gssilib.process_radar">
-<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">process_radar</code><span class="sig-paren">(</span><em>fns</em>, <em>rev_list=None</em>, <em>t_srs='sps'</em>, <em>elev_fn=None</em>, <em>pickle_fn=None</em>, <em>axin=None</em>, <em>gp=None</em>, <em>dielf=None</em>, <em>diel=None</em>, <em>layers=None</em>, <em>label=False</em>, <em>lw=1</em>, <em>plotdata=True</em>, <em>with_elevs=True</em>, <em>xoff=0.0</em>, <em>plot_layer=None</em>, <em>scale_x=1000.0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#process_radar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.process_radar" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">process_radar</code><span class="sig-paren">(</span><em>fns</em>, <em>rev_list=None</em>, <em>t_srs='sps'</em>, <em>elev_fn=None</em>, <em>pickle_fn=None</em>, <em>gp=None</em>, <em>diel=None</em>, <em>xoff=0.0</em>, <em>filter_dat=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#process_radar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.process_radar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read in raw (or pickled) radar data and do a bunch of processing on it</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>fns</strong> (<em>str</em><em> or </em><em>iterable of strs</em>) &#8211; The file(s) to process</li>
 <li><strong>rev_list</strong> (<em>list of bools</em><em>, </em><em>optional</em>) &#8211; For each file, do you want to reverse it. Default is no reversal (can also handle true or false to do the same to all files)</li>
+<li><strong>t_srs</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Try to project the output to this coordinate system</li>
+<li><strong>elev_fn</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; A .mat file containing fields x, y, z for the surface of the radar</li>
+<li><strong>gp</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; A string of comma-separated floats for the gainpoints. These get evenly distributed across depths. They are applied exponentially</li>
+<li><strong>diel</strong> (<em>float</em><em>, </em><em>numpy.ndarray</em><em>, </em><em>str</em><em>, or </em><em>None</em>) &#8211; diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</li>
+<li><strong>xoff</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; offset all the x values by this much (useful for plotting)</li>
+<li><strong>filter_dat</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; hit the data with the defaults of <a class="reference internal" href="#pygssi.lib.gssilib.filter_data" title="pygssi.lib.gssilib.filter_data"><code class="xref py py-func docutils literal"><span class="pre">filter_data()</span></code></a>. If you want custom values, you should take the data returned and hit it with the custom filter.</li>
 </ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li><strong>data</strong> (<em>nxm numpy.ndarray</em>) &#8211; The radar data (in decibels, possibly gained)</li>
+<li><strong>lldist</strong> (<em>mx3 numpy.ndarray</em>) &#8211; The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</li>
+<li><strong>elev</strong> (<em>mx1 numpy.ndarray</em>) &#8211; Elevations for each trace if kinematic GPS data was input, else None</li>
+<li><strong>z</strong> (<em>nx1 numpy.ndarray</em>) &#8211; The depth of each point. Just 0, 1... if no dielectric constant is given</li>
+<li><strong>diels</strong> (<em>lx2 numpy.ndarray</em>) &#8211; Depth, dielectric constant pairs.</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssilib.zero_surface">
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">zero_surface</code><span class="sig-paren">(</span><em>data</em>, <em>method='max'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#zero_surface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.zero_surface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get rid of returns above the surface</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>data</strong> (<em>nxm numpy.ndarray</em>) &#8211; The radar data array</li>
+<li><strong>method</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; How we detect the surface. Currently, only by the maximum amplitude return</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li><strong>data</strong> (<em>(n-ind)xm numpy.ndarray</em>) &#8211; The subset of the data below the surface</li>
+<li><strong>ind</strong> (<em>int</em>) &#8211; The index of the surface pixel used as the cutoff</li>
+</ul>
+</p>
 </td>
 </tr>
 </tbody>

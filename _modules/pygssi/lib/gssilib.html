@@ -142,6 +142,8 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Class definitions and helper functions for gssi info</span>
+
+<span class="sd">The workhorses here are :func:`~pygssi.lib.gssilib.process_and_plot` and :func:`~pygssi.lib.gssilib.process_radar`, which will handle a lot of the steps of taking a raw DZG file and plotting it and/or returning it in a useful form</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -157,23 +159,105 @@
 <span class="n">plt</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">prop_cycle</span><span class="o">=</span><span class="p">(</span><span class="n">cycler</span><span class="p">(</span><span class="s1">&#39;color&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;#1f77b4&#39;</span><span class="p">,</span> <span class="s1">&#39;#ff7f0e&#39;</span><span class="p">,</span> <span class="s1">&#39;#2ca02c&#39;</span><span class="p">,</span> <span class="s1">&#39;#d62728&#39;</span><span class="p">,</span> <span class="s1">&#39;#9467bd&#39;</span><span class="p">,</span> <span class="s1">&#39;#8c564b&#39;</span><span class="p">,</span> <span class="s1">&#39;#e377c2&#39;</span><span class="p">,</span> <span class="s1">&#39;#bcbd22&#39;</span><span class="p">,</span> <span class="s1">&#39;#17becf&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="n">cycler</span><span class="p">(</span><span class="s1">&#39;linestyle&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;solid&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">9</span><span class="p">)))</span>
 
 
+<div class="viewcode-block" id="process_and_plot"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.process_and_plot">[docs]</a><span class="k">def</span> <span class="nf">process_and_plot</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span>
+                     <span class="n">rev_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">t_srs</span><span class="o">=</span><span class="s1">&#39;sps&#39;</span><span class="p">,</span>
+                     <span class="n">elev_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">pickle_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">gp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">diel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">xoff</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                     <span class="n">filter_dat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                     <span class="n">axin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">with_elevs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                     <span class="n">layers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                     <span class="n">scale_x</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read in raw (or pickled) radar data and do a bunch of processing on it, then plot it up</span>
+
+<span class="sd">    This will always do two plots, one with a variable surface and one without, though if there is no elevation information the one with a variable surface is not saved.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fns: str or iterable of strs</span>
+<span class="sd">        The file(s) to process</span>
+<span class="sd">    rev_list: list of bools, optional</span>
+<span class="sd">        For each file, do you want to reverse it. Default is no reversal (can also handle true or false to do the same to all files)</span>
+<span class="sd">    t_srs: str, optional</span>
+<span class="sd">        Try to project the output to this coordinate system</span>
+<span class="sd">    elev_fn: str, optional</span>
+<span class="sd">        A .mat file containing fields x, y, z for the surface of the radar</span>
+<span class="sd">    gp: str, optional</span>
+<span class="sd">        A string of comma-separated floats for the gainpoints. These get evenly distributed across depths. They are applied exponentially</span>
+<span class="sd">    diel: float, numpy.ndarray, str, or None</span>
+<span class="sd">        diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</span>
+<span class="sd">    xoff: float, optional</span>
+<span class="sd">        offset all the x values by this much (useful for plotting)</span>
+<span class="sd">    filter_dat: bool, optional</span>
+<span class="sd">        hit the data with the defaults of :func:`~pygssi.lib.gssilib.filter_data`. If you want custom values, you should take the data returned and hit it with the custom filter.</span>
+<span class="sd">    axin: matplotlib.pyplot.Axis, optional</span>
+<span class="sd">        An axis to plot on. If with_elevs, then this is the variable surface axis. If not, it is the flat axis. </span>
+<span class="sd">    with_elevs: bool, optional</span>
+<span class="sd">        If True (default), the axis passed in is for the variable surface.</span>
+<span class="sd">    layers: list, optional</span>
+<span class="sd">        List of files containing layers to plot. This is designed to be used in conjunction with the radan tracing software, so the format is a 1-line header with &quot;Dist.(m),Lat,Long,Elev(m),Time,Layer 1 2-Way Time,Layer 2 2-Way Time...&quot;.</span>
+<span class="sd">    lw: float, optional</span>
+<span class="sd">        Line width of layers plotted.</span>
+<span class="sd">    scale_x: float, optional</span>
+<span class="sd">        Divide distance by this amount for x axis. Default is 1000.0 to make polar stereographic plots in km.</span>
+
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data: nxm numpy.ndarray</span>
+<span class="sd">        The radar data (in decibels, possibly gained)</span>
+<span class="sd">    lldist: mx3 numpy.ndarray</span>
+<span class="sd">        The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</span>
+<span class="sd">    elev: mx1 numpy.ndarray</span>
+<span class="sd">        Elevations for each trace if kinematic GPS data was input, else None</span>
+<span class="sd">    z: nx1 numpy.ndarray</span>
+<span class="sd">        The depth of each point. Just 0, 1... if no dielectric constant is given</span>
+<span class="sd">    diels: lx2 numpy.ndarray</span>
+<span class="sd">        Depth, dielectric constant pairs.</span>
+<span class="sd">    ldict: dict</span>
+<span class="sd">        A dictionary of layer names and depths. None if no layers are input</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">elev</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">diels</span> <span class="o">=</span> <span class="n">process_radar</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">rev_list</span><span class="o">=</span><span class="n">rev_list</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="n">t_srs</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="n">pickle_fn</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="n">elev_fn</span><span class="p">,</span> <span class="n">gp</span><span class="o">=</span><span class="n">gp</span><span class="p">,</span> <span class="n">diel</span><span class="o">=</span><span class="n">diel</span><span class="p">,</span> <span class="n">xoff</span><span class="o">=</span><span class="n">xoff</span><span class="p">,</span> <span class="n">filter_dat</span><span class="o">=</span><span class="n">filter_dat</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">axin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">)</span>
+        <span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">with_elevs</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axin</span>
+            <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">)</span>
+            <span class="n">ax2</span> <span class="o">=</span> <span class="n">axin</span>
+            <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax2</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">layers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ldict</span> <span class="o">=</span> <span class="n">plot_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">ax2</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">diels</span><span class="p">,</span> <span class="n">ax_variablesurf</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">,</span> <span class="n">scale_x</span><span class="o">=</span><span class="n">scale_x</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ldict</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">axin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">elev</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;radar_variable_surf.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+        <span class="n">fig2</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;radar_flat_surf.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">elev</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">diels</span><span class="p">,</span> <span class="n">ldict</span></div>
+
+
 <div class="viewcode-block" id="process_radar"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.process_radar">[docs]</a><span class="k">def</span> <span class="nf">process_radar</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span>
                   <span class="n">rev_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">t_srs</span><span class="o">=</span><span class="s1">&#39;sps&#39;</span><span class="p">,</span>
                   <span class="n">elev_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">pickle_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">axin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">gp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">dielf</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">diel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">layers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">label</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                  <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                  <span class="n">plotdata</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                  <span class="n">with_elevs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                   <span class="n">xoff</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-                  <span class="n">plot_layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                  <span class="n">scale_x</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">):</span>
+                  <span class="n">filter_dat</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Read in raw (or pickled) radar data and do a bunch of processing on it</span>
 <span class="sd">    </span>
 <span class="sd">    Parameters</span>
@@ -182,7 +266,31 @@
 <span class="sd">        The file(s) to process</span>
 <span class="sd">    rev_list: list of bools, optional</span>
 <span class="sd">        For each file, do you want to reverse it. Default is no reversal (can also handle true or false to do the same to all files)</span>
+<span class="sd">    t_srs: str, optional</span>
+<span class="sd">        Try to project the output to this coordinate system</span>
+<span class="sd">    elev_fn: str, optional</span>
+<span class="sd">        A .mat file containing fields x, y, z for the surface of the radar</span>
+<span class="sd">    gp: str, optional</span>
+<span class="sd">        A string of comma-separated floats for the gainpoints. These get evenly distributed across depths. They are applied exponentially</span>
+<span class="sd">    diel: float, numpy.ndarray, str, or None</span>
+<span class="sd">        diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</span>
+<span class="sd">    xoff: float, optional</span>
+<span class="sd">        offset all the x values by this much (useful for plotting)</span>
+<span class="sd">    filter_dat: bool, optional</span>
+<span class="sd">        hit the data with the defaults of :func:`~pygssi.lib.gssilib.filter_data`. If you want custom values, you should take the data returned and hit it with the custom filter.</span>
 
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data: nxm numpy.ndarray</span>
+<span class="sd">        The radar data (in decibels, possibly gained)</span>
+<span class="sd">    lldist: mx3 numpy.ndarray</span>
+<span class="sd">        The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</span>
+<span class="sd">    elev: mx1 numpy.ndarray</span>
+<span class="sd">        Elevations for each trace if kinematic GPS data was input, else None</span>
+<span class="sd">    z: nx1 numpy.ndarray</span>
+<span class="sd">        The depth of each point. Just 0, 1... if no dielectric constant is given</span>
+<span class="sd">    diels: lx2 numpy.ndarray</span>
+<span class="sd">        Depth, dielectric constant pairs.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">fns</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">fns</span> <span class="o">=</span> <span class="p">[</span><span class="n">fns</span><span class="p">]</span>
@@ -191,19 +299,14 @@
     <span class="k">elif</span> <span class="n">rev_list</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
         <span class="n">rev_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">rev_list</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">]</span>
 
-    <span class="n">gps_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">kinematic_data</span><span class="p">,</span> <span class="n">total_lat</span><span class="p">,</span> <span class="n">total_lon</span><span class="p">,</span> <span class="n">total_dist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">rev_list</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="n">elev_fn</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="n">pickle_fn</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="n">t_srs</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">rev_list</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="n">elev_fn</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="n">pickle_fn</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="n">t_srs</span><span class="p">)</span>
 
-    <span class="n">total_dist</span> <span class="o">+=</span> <span class="n">xoff</span>
+    <span class="n">lldist</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">lldist</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">xoff</span>
 
-    <span class="k">if</span> <span class="n">elev_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">elev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">elev_list</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[:</span><span class="nb">len</span><span class="p">(</span><span class="n">total_dist</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">elev_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">elev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">elev_list</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[:</span><span class="n">lldist</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">elev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">total_dist</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">zero_surface</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-        <span class="n">avg_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">max_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">avg_val</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">max_ind</span><span class="p">:,</span> <span class="p">:],</span> <span class="n">max_ind</span>
+        <span class="n">elev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">lldist</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
 
     <span class="n">data</span><span class="p">,</span> <span class="n">zero_ind</span> <span class="o">=</span> <span class="n">zero_surface</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
@@ -212,129 +315,83 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">data_to_db</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">dielf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">def</span> <span class="nf">load_dielf</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
-                <span class="n">lines</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+    <span class="n">layer_time_increment</span> <span class="o">=</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">range</span> <span class="o">/</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">nsamp</span> <span class="o">*</span> <span class="mf">1.0e-9</span>
+    <span class="n">y</span><span class="p">,</span> <span class="n">diels</span> <span class="o">=</span> <span class="n">apply_diel</span><span class="p">(</span><span class="n">diel</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">layer_time_increment</span><span class="o">=</span><span class="n">layer_time_increment</span><span class="p">)</span>
 
-            <span class="c1"># pad this with some values so we don&#39;t go out of bounds</span>
-            <span class="n">lines</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\ufeff</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\r</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span> <span class="n">lines</span><span class="p">))</span>
-            <span class="n">diels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]]]</span> <span class="o">+</span> <span class="n">lines</span> <span class="o">+</span> <span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]]])</span>
-            <span class="k">return</span> <span class="n">diels</span>
-        <span class="n">diels</span> <span class="o">=</span> <span class="n">load_dielf</span><span class="p">(</span><span class="n">dielf</span><span class="p">)</span>
-        
-        <span class="n">layer_time_increment</span> <span class="o">=</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">range</span> <span class="o">/</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">nsamp</span>
-
-        <span class="c1"># I am not sure if there is a smart way to do this, so instead I&#39;m going to figure out ho</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
-        <span class="n">current_layer</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">current_dist</span> <span class="o">=</span> <span class="mf">0.</span>
-        <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_dist</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)):</span>
-            <span class="n">remaining_inc</span> <span class="o">=</span> <span class="n">layer_time_increment</span>
-
-            <span class="c1"># this is complicated in case we get a sparsely sampled file where layers get skipped</span>
-            <span class="k">while</span> <span class="n">current_layer</span> <span class="o">&lt;</span> <span class="n">diels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-                <span class="k">if</span> <span class="n">current_dist</span> <span class="o">+</span> <span class="n">remaining_inc</span> <span class="o">*</span> <span class="mf">1.0e-9</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]:</span>
-                    <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_dist</span> <span class="o">+</span> <span class="n">remaining_inc</span> <span class="o">*</span> <span class="mf">1.0e-9</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
-                    <span class="n">current_dist</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                    <span class="k">break</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">dist_this_layer</span> <span class="o">=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_dist</span>
-                    <span class="n">time_for_this_layer</span> <span class="o">=</span> <span class="n">dist_this_layer</span> <span class="o">/</span> <span class="mf">1.0e-9</span> <span class="o">/</span> <span class="mf">3.0e8</span> <span class="o">*</span> <span class="mf">2.</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
-                    <span class="n">remaining_inc</span> <span class="o">-=</span> <span class="n">time_for_this_layer</span>
-                    <span class="n">current_dist</span> <span class="o">=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
-                    <span class="n">current_layer</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">diel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># Find the travel time per pixel</span>
-        <span class="n">incremental_travel_time</span> <span class="o">=</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">range</span> <span class="o">*</span> <span class="mf">1.0e-9</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">dzts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">nsamp</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">*</span> <span class="n">incremental_travel_time</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-
-    <span class="k">if</span> <span class="n">axin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">)</span>
-        <span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">plotdata</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">with_elevs</span><span class="p">:</span>
-                <span class="n">ax</span> <span class="o">=</span> <span class="n">axin</span>
-                <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-                <span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="n">elev</span><span class="p">)</span>
-                <span class="n">ax2</span> <span class="o">=</span> <span class="n">axin</span>
-                <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax2</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ax</span> <span class="o">=</span> <span class="n">axin</span>
-            <span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">total_dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">filter_dat</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">filter_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
     
+    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">elev</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">diels</span></div>
+
+
+<div class="viewcode-block" id="plot_layers"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.plot_layers">[docs]</a><span class="k">def</span> <span class="nf">plot_layers</span><span class="p">(</span><span class="n">layer_fns</span><span class="p">,</span> <span class="n">ax_flat</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">diels</span><span class="p">,</span> <span class="n">ax_variablesurf</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">scale_x</span><span class="o">=</span><span class="mf">1000.</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plot layers on axes given</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    layer_fns: list</span>
+<span class="sd">        List of files containing layers to plot. This is designed to be used in conjunction with the radan tracing software, so the format is a 1-line header with &quot;Dist.(m),Lat,Long,Elev(m),Time,Layer 1 2-Way Time,Layer 2 2-Way Time...&quot;.</span>
+<span class="sd">    ax_flat: matplotlib.pyplot.Axis</span>
+<span class="sd">        Axis in depth (or TWTT) space on which to plot</span>
+<span class="sd">    lldist: mx3 numpy.ndarray</span>
+<span class="sd">        The lon, lat, and distance for each point. If no GPS data is given, each row is 0, 1, 2...</span>
+<span class="sd">    diels: lx2 numpy.ndarray</span>
+<span class="sd">        Depth, dielectric constant pairs.</span>
+<span class="sd">    ax_variablesurf: matplotlib.pyplot.Axis, optional</span>
+<span class="sd">        Axis in elevation space on which to plot</span>
+<span class="sd">    linewidth: float, optional</span>
+<span class="sd">        Line width of layers plotted.</span>
+<span class="sd">    scale_x: float, optional</span>
+<span class="sd">        Divide distance by this amount for x axis. Default is 1000.0 to make polar stereographic plots in km.</span>
+<span class="sd">    z: mx1 numpy.ndarray, optional</span>
+<span class="sd">        Elevations for each trace. Ignored if no ax_variablesurf.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ldict: dict</span>
+<span class="sd">        A dictionary of layer names and depths. None if no layers are input</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">bb</span><span class="p">,</span> <span class="n">ab</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)</span>
     <span class="n">ldict</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">if</span> <span class="n">layers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">linefn</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
-            <span class="k">with</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">linefn</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
-                <span class="n">lines</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
-            <span class="n">la</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">line</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\r</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
-            <span class="n">indices</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">linefn</span> <span class="ow">in</span> <span class="n">layer_fns</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">linefn</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="n">la</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">line</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\r</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
 
-            <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
-            <span class="n">elevs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="p">))</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-                <span class="n">dv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">total_lat</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">la</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;Lat&#39;</span><span class="p">)])</span> <span class="o">&lt;</span> <span class="mf">1.0e-5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">total_lon</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">la</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;Long&#39;</span><span class="p">)])</span> <span class="o">&lt;</span> <span class="mf">1.0e-5</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span> 
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                    <span class="n">elevs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                    <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                    <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_dist</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-                    <span class="n">elevs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">elev</span><span class="p">[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-                    <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_lon</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> 
-                    <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_lat</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> 
-            <span class="k">if</span> <span class="n">plot_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">lrange</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">19</span><span class="p">)</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
+        <span class="n">elevs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">la</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">dv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">la</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;Lat&#39;</span><span class="p">)])</span> <span class="o">&lt;</span> <span class="mf">1.0e-5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">lldist</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">la</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;Long&#39;</span><span class="p">)])</span> <span class="o">&lt;</span> <span class="mf">1.0e-5</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span> 
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                <span class="n">elevs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">lrange</span> <span class="o">=</span> <span class="p">[</span><span class="n">plot_layer</span><span class="p">]</span>
+                <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">elevs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">lldist</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> 
+                <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">lldist</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> 
+        <span class="k">for</span> <span class="n">linenum</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">50</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Layer </span><span class="si">{:d}</span><span class="s1"> 2-Way Time&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">depth</span> <span class="o">=</span> <span class="n">tt_to_m_variable_arr</span><span class="p">(</span><span class="n">diels</span><span class="p">,</span> <span class="n">la</span><span class="p">[:,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)])</span>
+                <span class="n">depth</span><span class="p">[</span><span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">depth</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">depth</span><span class="p">)]</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">filtfilt</span><span class="p">(</span><span class="n">bb</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">depth</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">depth</span><span class="p">)])</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="k">pass</span>
 
-            <span class="k">for</span> <span class="n">linenum</span> <span class="ow">in</span> <span class="n">lrange</span><span class="p">:</span>
-                <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Layer </span><span class="si">{:d}</span><span class="s1"> 2-Way Time&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">depth</span> <span class="o">=</span> <span class="n">tt_to_m_variable_arr</span><span class="p">(</span><span class="n">diels</span><span class="p">,</span> <span class="n">la</span><span class="p">[:,</span> <span class="n">indices</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">name</span><span class="p">)])</span>
-                    <span class="n">depth</span><span class="p">[</span><span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">depth</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">depth</span><span class="p">)]</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">filtfilt</span><span class="p">(</span><span class="n">bb</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">depth</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">depth</span><span class="p">)])</span>
-                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                        <span class="k">pass</span>
-
-                    <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">dist</span><span class="p">),</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">depth</span><span class="p">))</span>
-
-                    <span class="k">if</span> <span class="n">axin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;line_</span><span class="si">{:d}</span><span class="s1">.csv&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fout</span><span class="p">:</span>
-                            <span class="n">fout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;lon, lat, distance, depth, elevation</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
-                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">depth</span><span class="p">)):</span>
-                                <span class="n">fout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{:f}</span><span class="s1">, </span><span class="si">{:f}</span><span class="s1">, </span><span class="si">{:f}</span><span class="s1">, </span><span class="si">{:f}</span><span class="s1">, </span><span class="si">{:f}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">depth</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">elevs</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span> 
-
-                    <span class="n">ldict</span><span class="p">[</span><span class="s1">&#39;layer </span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dist</span><span class="p">,</span> <span class="n">elevs</span><span class="p">,</span> <span class="n">depth</span><span class="p">))</span><span class="o">.</span><span class="n">transpose</span><span class="p">()))</span>
-                    
-                    <span class="k">if</span> <span class="n">plot_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">pl</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">elevs</span> <span class="o">-</span> <span class="n">depth</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">pl</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">elevs</span> <span class="o">-</span> <span class="n">depth</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
-                    <span class="n">pl</span> <span class="o">=</span> <span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">lw</span><span class="p">)</span>
-
-                    <span class="n">ax2</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">depth</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">pl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_color</span><span class="p">(),</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">axin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;test.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
-        <span class="n">fig2</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;flat_surf.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">400</span><span class="p">)</span>
-    
-    <span class="k">return</span> <span class="p">(</span><span class="n">gps_data</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">kinematic_data</span><span class="p">,</span> <span class="n">total_lat</span><span class="p">,</span> <span class="n">total_lon</span><span class="p">,</span> <span class="n">total_dist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span><span class="p">),</span> <span class="n">ldict</span></div>
+                <span class="n">ldict</span><span class="p">[</span><span class="s1">&#39;layer </span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">linenum</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dist</span><span class="p">,</span> <span class="n">elevs</span><span class="p">,</span> <span class="n">depth</span><span class="p">))</span><span class="o">.</span><span class="n">transpose</span><span class="p">()))</span>
+                
+                <span class="k">if</span> <span class="n">ax_variablesurf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">ax_variablesurf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">elevs</span> <span class="o">-</span> <span class="n">depth</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">ax_flat</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dist</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ldict</span></div>
 
 
 <div class="viewcode-block" id="plot_radar"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.plot_radar">[docs]</a><span class="k">def</span> <span class="nf">plot_radar</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">out_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Distance (km)&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Depth (m)&#39;</span><span class="p">):</span>
@@ -354,7 +411,10 @@
 <span class="sd">        An nx1 array y values of surface height. Depths are subtracted from this before plotting if not None. Ignored if x or y is None.</span>
 <span class="sd">    ax: matplotlib.pyplot.Axis</span>
 <span class="sd">        Plot on these axes rather than creating a new figure (default is None/create figure)</span>
-<span class="sd">    xlabel, ylabel: Labels for the axes (overridden if x or y are None).</span>
+<span class="sd">    xlabel: str, optional</span>
+<span class="sd">        Labels for the x-axis (overridden if x or y are None).</span>
+<span class="sd">    ylabel: str, optional</span>
+<span class="sd">        Labels for the y-axis (overridden if x or y are None).</span>
 
 
 <span class="sd">    Returns</span>
@@ -432,6 +492,111 @@
         <span class="n">b_hor</span><span class="p">,</span> <span class="n">a_hor</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">butter</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">v_hpass</span><span class="p">,</span> <span class="n">btype</span><span class="o">=</span><span class="s1">&#39;high&#39;</span><span class="p">)</span>
         <span class="n">dat</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">filtfilt</span><span class="p">(</span><span class="n">b_hor</span><span class="p">,</span> <span class="n">a_hor</span><span class="p">,</span> <span class="n">dat</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">dat</span></div>
+
+
+<div class="viewcode-block" id="load_diel_file"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.load_diel_file">[docs]</a><span class="k">def</span> <span class="nf">load_diel_file</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Load dielectric constant from file</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn: str</span>
+<span class="sd">        Should be a two column csv with the depths in the left column and the values in the right</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+
+    <span class="c1"># pad this with some values so we don&#39;t go out of bounds</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\ufeff</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\r</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span> <span class="n">lines</span><span class="p">))</span>
+    <span class="n">diels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]]]</span> <span class="o">+</span> <span class="n">lines</span> <span class="o">+</span> <span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]]])</span>
+    <span class="k">return</span> <span class="n">diels</span></div>
+
+
+<div class="viewcode-block" id="apply_diel"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.apply_diel">[docs]</a><span class="k">def</span> <span class="nf">apply_diel</span><span class="p">(</span><span class="n">diel</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">layer_time_increment</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Apply some kind of dielectric model to data</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    diel: float, numpy.ndarray, str, or None</span>
+<span class="sd">        diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</span>
+<span class="sd">    data: numpy.ndarray</span>
+<span class="sd">        The data that we are rescaling</span>
+<span class="sd">    layer_time_increment: float</span>
+<span class="sd">        size of a vertical increment in seconds</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    y: nx1 array</span>
+<span class="sd">        The depths of each vertical pixel</span>
+<span class="sd">    diels: mx2 array</span>
+<span class="sd">        Depth and dielectric constant pairs</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+        
+    <span class="k">if</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">layer_time_increment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># two depth-variable dielectric constants</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">diels</span> <span class="o">=</span> <span class="n">load_diel_file</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">diel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">diels</span> <span class="o">=</span> <span class="n">diel</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Second dimension of dielectric array must be two&#39;</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">))</span>
+
+        <span class="c1"># We now need to iterate layer by layer</span>
+        <span class="n">current_layer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">current_dist</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_dist</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)):</span>
+            <span class="n">remaining_inc</span> <span class="o">=</span> <span class="n">layer_time_increment</span>
+            <span class="c1"># this is complicated in case we get a sparsely sampled file where layers get skipped</span>
+            <span class="k">while</span> <span class="n">current_layer</span> <span class="o">&lt;</span> <span class="n">diels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">current_dist</span> <span class="o">+</span> <span class="n">remaining_inc</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_dist</span> <span class="o">+</span> <span class="n">remaining_inc</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+                    <span class="n">current_dist</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">dist_this_layer</span> <span class="o">=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_dist</span>
+                    <span class="n">time_for_this_layer</span> <span class="o">=</span> <span class="n">dist_this_layer</span> <span class="o">/</span> <span class="mf">3.0e8</span> <span class="o">*</span> <span class="mf">2.</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+                    <span class="n">remaining_inc</span> <span class="o">-=</span> <span class="n">time_for_this_layer</span>
+                    <span class="n">current_dist</span> <span class="o">=</span> <span class="n">diels</span><span class="p">[</span><span class="n">current_layer</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                    <span class="n">current_layer</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">diel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">layer_time_increment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Depth-constant diel</span>
+        <span class="n">incremental_travel_time</span> <span class="o">=</span> <span class="n">layer_time_increment</span> <span class="o">*</span> <span class="mf">3.0e8</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">diel</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">*</span> <span class="n">incremental_travel_time</span>
+        <span class="n">diels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">diel</span><span class="p">],</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">diel</span><span class="p">]])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># stay in twtt</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flipud</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">diels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="mi">1</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">diels</span></div>
+
+
+<div class="viewcode-block" id="zero_surface"><a class="viewcode-back" href="../../../lib/gssilib.html#pygssi.lib.gssilib.zero_surface">[docs]</a><span class="k">def</span> <span class="nf">zero_surface</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;max&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get rid of returns above the surface</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data: nxm numpy.ndarray</span>
+<span class="sd">        The radar data array</span>
+<span class="sd">    method: str, optional</span>
+<span class="sd">        How we detect the surface. Currently, only by the maximum amplitude return</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data: (n-ind)xm numpy.ndarray</span>
+<span class="sd">        The subset of the data below the surface</span>
+<span class="sd">    ind: int</span>
+<span class="sd">        The index of the surface pixel used as the cutoff</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span>
+        <span class="n">avg_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">max_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">avg_val</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can only do max now&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">max_ind</span><span class="p">:,</span> <span class="p">:],</span> <span class="n">max_ind</span></div>
 </pre></div>
 
            </div>
