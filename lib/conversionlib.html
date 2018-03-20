@@ -1,0 +1,180 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Conversions of radar data &#8212; pygssi 0.1a1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1a1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="GSSI radar file library" href="gpslib.html" />
+    <link rel="prev" title="Classes and functions for GSSI file reading" href="gssi_filelib.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pygssi.lib.conversionlib">
+<span id="conversions-of-radar-data"></span><h1>Conversions of radar data<a class="headerlink" href="#module-pygssi.lib.conversionlib" title="Permalink to this headline">¶</a></h1>
+<p>A bunch of radar-related conversions</p>
+<dl class="function">
+<dt id="pygssi.lib.conversionlib.data_to_db">
+<code class="descclassname">pygssi.lib.conversionlib.</code><code class="descname">data_to_db</code><span class="sig-paren">(</span><em>data</em>, <em>p1=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.conversionlib.data_to_db" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert data to decibels</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> (<em>numpy.ndarray</em>) &#8211; The data you want to convert</li>
+<li><strong>p1</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; The &#8220;zero&#8221; value for the scale. If none, use the mean of <cite>data</cite></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.conversionlib.gained_decibels">
+<code class="descclassname">pygssi.lib.conversionlib.</code><code class="descname">gained_decibels</code><span class="sig-paren">(</span><em>gainpoints</em>, <em>data</em>, <em>p1=None</em>, <em>recenter=True</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.conversionlib.gained_decibels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply gain and convert to decibels</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>gainpoints</strong> (<em>str</em>) &#8211; A string of comma-separated floats for the gainpoints. These get evenly distributed across depths. They are applied exponentially</li>
+<li><strong>data</strong> (<em>numpy.ndarray</em>) &#8211; The sample data</li>
+<li><strong>p1</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; The &#8220;zero&#8221; value for the scale. If none, use the mean of <cite>data</cite></li>
+<li><strong>recenter</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; If true (default), subtract the mean after gaining to center the data on zero</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.conversionlib.to_date">
+<code class="descclassname">pygssi.lib.conversionlib.</code><code class="descname">to_date</code><span class="sig-paren">(</span><em>bin</em>, <em>le=True</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.conversionlib.to_date" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert the GSSI date format to a <code class="xref py py-class docutils literal"><span class="pre">datetime.datetime</span></code> object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>bin</strong> (<em>bits</em>) &#8211; The gssi binary date</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><strong>time</strong> &#8211; The time from the header</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><code class="xref py py-class docutils literal"><span class="pre">datetime.datetime</span></code></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.conversionlib.tt_to_m_variable_arr">
+<code class="descclassname">pygssi.lib.conversionlib.</code><code class="descname">tt_to_m_variable_arr</code><span class="sig-paren">(</span><em>diel_array</em>, <em>tt_arr</em>, <em>conv_to_sec=1e-09</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.conversionlib.tt_to_m_variable_arr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert two-way travel time to distance using a variable dielectric constant</p>
+<p>Note that this function is very much not elegant, but I think that it should not be too slow unless you dielectric array is very large</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>diel_array</strong> (<em>numpy.ndarray</em>) &#8211; An nx2 array where the first column is the depth and the second column is the dielectric constant</li>
+<li><strong>tt_array</strong> (<em>numpy.ndarray</em>) &#8211; An mxn array of two-way travel times (typically mx1)</li>
+<li><strong>conv_to_sec</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Conversion factor to get from travel-time to seconds (default is assume in nanoseconds, which should be GSSI standard)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Libraries for processing GSSI radar</a><ul>
+      <li>Previous: <a href="gssi_filelib.html" title="previous chapter">Classes and functions for GSSI file reading</a></li>
+      <li>Next: <a href="gpslib.html" title="next chapter">GSSI radar file library</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/lib/conversionlib.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, David Lilien.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/lib/conversionlib.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Classes and functions for GSSI file reading &#8212; pygssi 0.1a1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1a1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Conversions of radar data" href="conversionlib.html" />
+    <link rel="prev" title="Process and plot binary GSSI files" href="gssilib.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pygssi.lib.gssi_filelib">
+<span id="classes-and-functions-for-gssi-file-reading"></span><h1>Classes and functions for GSSI file reading<a class="headerlink" href="#module-pygssi.lib.gssi_filelib" title="Permalink to this headline">¶</a></h1>
+<p>Just define some classes and helper reader functions for gssi data</p>
+<dl class="class">
+<dt id="pygssi.lib.gssi_filelib.DZT">
+<em class="property">class </em><code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">DZT</code><span class="sig-paren">(</span><em>header</em>, <em>sample</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.gssi_filelib.DZT" title="Permalink to this definition">¶</a></dt>
+<dd><p>A DZT file</p>
+<dl class="attribute">
+<dt id="pygssi.lib.gssi_filelib.DZT.header">
+<code class="descname">header</code><a class="headerlink" href="#pygssi.lib.gssi_filelib.DZT.header" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#pygssi.lib.gssi_filelib.RH" title="pygssi.lib.gssi_filelib.RH"><code class="xref py py-class docutils literal"><span class="pre">RH</span></code></a> &#8211; The header of the file, with lot of useful (maybe) info</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="pygssi.lib.gssi_filelib.DZT.samp">
+<code class="descname">samp</code><a class="headerlink" href="#pygssi.lib.gssi_filelib.DZT.samp" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>numpy.ndarray</em> &#8211; An array containing the actual returns (not normalized, so won&#8217;t plot well as-is</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pygssi.lib.gssi_filelib.RH">
+<em class="property">class </em><code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">RH</code><a class="headerlink" href="#pygssi.lib.gssi_filelib.RH" title="Permalink to this definition">¶</a></dt>
+<dd><p>You probably need to read the GSSI docs on the c struct to understand this stuff</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssi_filelib.check_headers">
+<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">check_headers</code><span class="sig-paren">(</span><em>dzts</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.gssi_filelib.check_headers" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssi_filelib.get_dzg_data">
+<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">get_dzg_data</code><span class="sig-paren">(</span><em>fn</em>, <em>t_srs='sps'</em>, <em>rev=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.gssi_filelib.get_dzg_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read GPS data associated with a GSSI sir4000 file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn</strong> (<em>str</em>) &#8211; A dzg file with ggis and gga strings.</li>
+<li><strong>t_srs</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Target coordinate reference. Default lat/lon (wgs84)</li>
+<li><strong>rev</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; Reverse the points in this file (used for concatenating radar files). Default False.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>data</strong></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="gpslib.html#pygssi.lib.gpslib.nmea_info" title="pygssi.lib.gpslib.nmea_info"><code class="xref py py-class docutils literal"><span class="pre">nmea_info</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssi_filelib.read_dzt">
+<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">read_dzt</code><span class="sig-paren">(</span><em>fn</em>, <em>rev=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pygssi.lib.gssi_filelib.read_dzt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a dzt file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn</strong> (<em>str</em>) &#8211; File to parse</li>
+<li><strong>rev</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; Reverse the input array (useful for concatenating files)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>data</strong></p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#pygssi.lib.gssi_filelib.DZT" title="pygssi.lib.gssi_filelib.DZT"><code class="xref py py-class docutils literal"><span class="pre">DZT</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Libraries for processing GSSI radar</a><ul>
+      <li>Previous: <a href="gssilib.html" title="previous chapter">Process and plot binary GSSI files</a></li>
+      <li>Next: <a href="conversionlib.html" title="next chapter">Conversions of radar data</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/lib/gssi_filelib.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, David Lilien.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/lib/gssi_filelib.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
