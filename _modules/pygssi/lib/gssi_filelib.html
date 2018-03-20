@@ -1,0 +1,468 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>pygssi.lib.gssi_filelib &mdash; pygssi 0.1a1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="pygssi 0.1a1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> pygssi
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../lib/index.html">Libraries for processing GSSI radar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../bin/index.html">Executables for processing GSSI radar</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">pygssi</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>pygssi.lib.gssi_filelib</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for pygssi.lib.gssi_filelib</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># vim:fenc=utf-8</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright © 2018 dlilien &lt;dal22@uw.edu&gt;</span>
+<span class="c1">#</span>
+<span class="c1"># Distributed under terms of the MIT license.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Just define some classes and helper reader functions for gssi data</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.gpslib</span> <span class="k">import</span> <span class="n">nmea_all_info</span>
+<span class="kn">from</span> <span class="nn">.conversionlib</span> <span class="k">import</span> <span class="n">to_date</span>
+<span class="kn">from</span> <span class="nn">.gpslib</span> <span class="k">import</span> <span class="n">kinematic_info</span>
+<span class="kn">from</span> <span class="nn">pygeotools.lib</span> <span class="k">import</span> <span class="n">geolib</span>
+
+
+<div class="viewcode-block" id="RH"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.RH">[docs]</a><span class="k">class</span> <span class="nc">RH</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;You probably need to read the GSSI docs on the c struct to understand this stuff&quot;&quot;&quot;</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">nsamp</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="nb">bytes</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">us_dattype</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">s_dattype</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">rgain</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">nrgain</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">checksum</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">antname</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;rgain: </span><span class="si">{:d}</span><span class="s1">, nrgain </span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rgain</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nrgain</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__str__</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="DZT"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.DZT">[docs]</a><span class="k">class</span> <span class="nc">DZT</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A DZT file</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    header:  :class:`~pygssi.lib.gssi_filelib.RH`</span>
+<span class="sd">        The header of the file, with lot of useful (maybe) info</span>
+<span class="sd">    samp: numpy.ndarray</span>
+<span class="sd">        An array containing the actual returns (not normalized, so won&#39;t plot well as-is</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">samp</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">header</span><span class="p">,</span> <span class="n">sample</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">header</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">samp</span> <span class="o">=</span> <span class="n">sample</span></div>
+
+
+<div class="viewcode-block" id="read_dzt"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.read_dzt">[docs]</a><span class="k">def</span> <span class="nf">read_dzt</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">rev</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read a dzt file</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn: str</span>
+<span class="sd">        File to parse</span>
+<span class="sd">    rev: bool, optional</span>
+<span class="sd">        Reverse the input array (useful for concatenating files)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data: :class:`~pygssi.lib.gssi_filelib.DZT`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">rh</span> <span class="o">=</span> <span class="n">RH</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">nsamp</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">8</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">bytes</span> <span class="o">=</span> <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">//</span> <span class="mi">8</span>
+
+    <span class="c1"># I think this implicitly detects if you are using a SIR2000 or SIR3000</span>
+    <span class="k">if</span> <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">32</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">us_dattype</span> <span class="o">=</span> <span class="s1">&#39;I&#39;</span>
+    <span class="k">elif</span> <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">us_dattype</span> <span class="o">=</span> <span class="s1">&#39;H&#39;</span>
+    <span class="k">if</span> <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">32</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">s_dattype</span> <span class="o">=</span> <span class="s1">&#39;i&#39;</span>
+    <span class="k">elif</span> <span class="n">rh</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">s_dattype</span> <span class="o">=</span> <span class="s1">&#39;h&#39;</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">zero</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;h&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">10</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">sps</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="mi">14</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">spm</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">14</span><span class="p">:</span><span class="mi">18</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">mpm</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">18</span><span class="p">:</span><span class="mi">22</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">22</span><span class="p">:</span><span class="mi">26</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">range</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">26</span><span class="p">:</span><span class="mi">30</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">npass</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;h&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">30</span><span class="p">:</span><span class="mi">32</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">create_full</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;4s&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">32</span><span class="p">:</span><span class="mi">36</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">modify_full</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;4s&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">36</span><span class="p">:</span><span class="mi">40</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">Create</span> <span class="o">=</span> <span class="n">to_date</span><span class="p">(</span><span class="n">create_full</span><span class="p">)</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">Modify</span> <span class="o">=</span> <span class="n">to_date</span><span class="p">(</span><span class="n">modify_full</span><span class="p">)</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">rgain</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">40</span><span class="p">:</span><span class="mi">42</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">nrgain</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">42</span><span class="p">:</span><span class="mi">44</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">44</span><span class="p">:</span><span class="mi">46</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">ntext</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">46</span><span class="p">:</span><span class="mi">48</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">proc</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">48</span><span class="p">:</span><span class="mi">50</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">50</span><span class="p">:</span><span class="mi">52</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">nchan</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">52</span><span class="p">:</span><span class="mi">54</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">epsr</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">54</span><span class="p">:</span><span class="mi">58</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">top</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">58</span><span class="p">:</span><span class="mi">62</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">depth</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">62</span><span class="p">:</span><span class="mi">66</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">reserved</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;31c&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">66</span><span class="p">:</span><span class="mi">97</span><span class="p">])</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;c&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">97</span><span class="p">:</span><span class="mi">98</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">antname</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;14c&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">98</span><span class="p">:</span><span class="mi">112</span><span class="p">])</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">chanmask</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">112</span><span class="p">:</span><span class="mi">114</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;12c&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">114</span><span class="p">:</span><span class="mi">126</span><span class="p">])</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">chksum</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">126</span><span class="p">:</span><span class="mi">128</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rh</span><span class="o">.</span><span class="n">breaks</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="n">rh</span><span class="o">.</span><span class="n">rgain</span><span class="p">:</span><span class="n">rh</span><span class="o">.</span><span class="n">rgain</span> <span class="o">+</span> <span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">Gainpoints</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;</span><span class="si">{:d}</span><span class="s1">i&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rh</span><span class="o">.</span><span class="n">nrgain</span><span class="p">),</span> <span class="n">lines</span><span class="p">[</span><span class="n">rh</span><span class="o">.</span><span class="n">rgain</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:</span><span class="n">rh</span><span class="o">.</span><span class="n">rgain</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="n">rh</span><span class="o">.</span><span class="n">nrgain</span><span class="p">)]))</span>
+    <span class="n">rh</span><span class="o">.</span><span class="n">Gain</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">rh</span><span class="o">.</span><span class="n">ntext</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">comments</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;</span><span class="si">{:d}</span><span class="s1">s&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rh</span><span class="o">.</span><span class="n">ntext</span><span class="p">),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">130</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">rh</span><span class="o">.</span><span class="n">Gain</span><span class="p">:</span> <span class="mi">130</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">bytes</span> <span class="o">*</span> <span class="n">rh</span><span class="o">.</span><span class="n">Gain</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">ntext</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">comments</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">rh</span><span class="o">.</span><span class="n">nproc</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">proccessing</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;</span><span class="si">{:d}</span><span class="s1">s&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rh</span><span class="o">.</span><span class="n">nproc</span><span class="p">),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">130</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">bytes</span> <span class="o">*</span> <span class="n">rh</span><span class="o">.</span><span class="n">Gain</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">ntext</span><span class="p">:</span><span class="mi">130</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">bytes</span> <span class="o">*</span> <span class="n">rh</span><span class="o">.</span><span class="n">Gain</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">ntext</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">nproc</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rh</span><span class="o">.</span><span class="n">proc</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="c1"># d = np.array(struct.unpack(&#39;&lt;{:d}&#39;.format((len(lines) - 1024) // 2) + dattype, lines[1024:]))</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">-</span> <span class="mi">36</span> <span class="o">*</span> <span class="mi">4096</span><span class="p">)</span> <span class="o">//</span> <span class="n">rh</span><span class="o">.</span><span class="n">bytes</span><span class="p">)</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">us_dattype</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">36</span> <span class="o">*</span> <span class="mi">4096</span><span class="p">:]))</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">rh</span><span class="o">.</span><span class="n">nsamp</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">)</span>
+    <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">+</span> <span class="n">rh</span><span class="o">.</span><span class="n">zero</span>
+    <span class="k">if</span> <span class="n">rev</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fliplr</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">dat</span> <span class="o">=</span> <span class="n">DZT</span><span class="p">(</span><span class="n">rh</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dat</span></div>
+
+
+<div class="viewcode-block" id="get_dzg_data"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.get_dzg_data">[docs]</a><span class="k">def</span> <span class="nf">get_dzg_data</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="s1">&#39;sps&#39;</span><span class="p">,</span> <span class="n">rev</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read GPS data associated with a GSSI sir4000 file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn: str</span>
+<span class="sd">        A dzg file with ggis and gga strings.</span>
+<span class="sd">    t_srs: str, optional</span>
+<span class="sd">        Target coordinate reference. Default lat/lon (wgs84)</span>
+<span class="sd">    rev: bool, optional</span>
+<span class="sd">        Reverse the points in this file (used for concatenating radar files). Default False.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data: :class:`~pygssi.lib.gpslib.NMEA`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+    <span class="n">ggis</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[::</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">gga</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">nmea_all_info</span><span class="p">(</span><span class="n">gga</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">scans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">ggis</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="n">rev</span><span class="p">:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">rev</span><span class="p">()</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">get_all</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">t_srs</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;sps&#39;</span><span class="p">,</span> <span class="s1">&#39;EPSG:3031&#39;</span><span class="p">]:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geolib</span><span class="o">.</span><span class="n">ll2sps</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t_srs</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;nps&#39;</span><span class="p">,</span> <span class="s1">&#39;EPSG:3413&#39;</span><span class="p">]:</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">geolib</span><span class="o">.</span><span class="n">ll2nps</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;t_srs not recognized, defaulting to lat/lon (wgs84)&#39;</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">lon</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">lat</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="check_headers"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.check_headers">[docs]</a><span class="k">def</span> <span class="nf">check_headers</span><span class="p">(</span><span class="n">dzts</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This function should check that the headers have the same number of channels, bytes, etc. and raise an exception if not&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">GssiError</span></div>
+
+
+<div class="viewcode-block" id="read"><a class="viewcode-back" href="../../../lib/gssi_filelib.html#pygssi.lib.gssi_filelib.read">[docs]</a><span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">revs</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="s1">&#39;sps&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read in files (and try to get their GPS info too)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fns: iterable</span>
+<span class="sd">        The files to read</span>
+<span class="sd">    revs: iterable</span>
+<span class="sd">        Reverse each file? (must be same length as fns)</span>
+<span class="sd">    pickle_fn: str, optional</span>
+<span class="sd">        Try to load pre-packaged results from this filename</span>
+<span class="sd">    elev_fn: str, optional</span>
+<span class="sd">        Load kinematic GPS data from this matlab file so that you don&#39;t use the crappy ones from the GPS on the radar</span>
+<span class="sd">    t_srs: str, optional</span>
+<span class="sd">        Load things into this projection (can convert to sps/EPSG:3031 or nps/EPSG:3413 from wgs84</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    gps_data: list of :class:`~pygssi.lib.gpslib.NMEA`</span>
+<span class="sd">        GPS data for each of the input files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fns</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">revs</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Each file must have a bool to say whether to reverse it&#39;</span><span class="p">)</span>
+    <span class="n">hashval</span> <span class="o">=</span> <span class="s1">&#39;radar_&#39;</span> <span class="o">+</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fns</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">pickle_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">hashval</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Loading pickled data&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pickle_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hashval</span> <span class="o">=</span> <span class="n">pickle_fn</span>
+        <span class="p">(</span><span class="n">gps_data</span><span class="p">,</span>
+         <span class="n">stacked_data</span><span class="p">,</span>
+         <span class="n">kinematic_data</span><span class="p">,</span>
+         <span class="n">total_lat</span><span class="p">,</span>
+         <span class="n">total_lon</span><span class="p">,</span>
+         <span class="n">total_dist</span><span class="p">,</span>
+         <span class="n">dzts</span><span class="p">,</span>
+         <span class="n">elev_list</span><span class="p">)</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">hashval</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Loading data from DZT and DZG files&#39;</span><span class="p">)</span>
+        <span class="n">gps_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_dzg_data</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fn</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.DZG&#39;</span><span class="p">,</span> <span class="n">t_srs</span><span class="p">,</span> <span class="n">rev</span><span class="o">=</span><span class="n">rev</span><span class="p">)</span> <span class="k">for</span> <span class="n">fn</span><span class="p">,</span> <span class="n">rev</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">revs</span><span class="p">)]</span>
+        <span class="c1"># Now find the x coordinates for plotting</span>
+        <span class="k">for</span> <span class="n">gpd</span> <span class="ow">in</span> <span class="n">gps_data</span><span class="p">:</span>
+            <span class="n">gpd</span><span class="o">.</span><span class="n">set_proj</span><span class="p">(</span><span class="s1">&#39;sps&#39;</span><span class="p">)</span>
+            <span class="n">gpd</span><span class="o">.</span><span class="n">get_dist</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">elev_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kinematic_data</span> <span class="o">=</span> <span class="n">kinematic_info</span><span class="p">(</span><span class="n">elev_fn</span><span class="p">)</span>
+            <span class="n">elev_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">kinematic_data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">gpd</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">gpd</span> <span class="ow">in</span> <span class="n">gps_data</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Read in elevations&#39;</span><span class="p">)</span>
+
+        <span class="n">total_dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">gps_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dist</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">:]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">gps_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">dist</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">gps_data</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">dist</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">)])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gps_data</span><span class="p">))])</span>
+        <span class="n">total_lat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">gps_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">:]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">gps_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gps_data</span><span class="p">))])</span>
+        <span class="n">total_lon</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">gps_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">:]]</span> <span class="o">+</span> <span class="p">[</span><span class="n">gps_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">lon</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gps_data</span><span class="p">))])</span>
+        <span class="n">dzts</span> <span class="o">=</span> <span class="p">[</span><span class="n">read_dzt</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">rev</span><span class="o">=</span><span class="n">rev</span><span class="p">)</span> <span class="k">for</span> <span class="n">fn</span><span class="p">,</span> <span class="n">rev</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">revs</span><span class="p">)]</span>
+        <span class="n">check_headers</span><span class="p">(</span><span class="n">dzts</span><span class="p">)</span>
+        <span class="n">gps_stack_number</span> <span class="o">=</span> <span class="n">gps_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scans</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">gps_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scans</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># we are doing this next bit in two steps because of cutoff effects where the length of the gps and the stacked data don&#39;t match</span>
+        <span class="n">stack_data_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">dzts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">samp</span><span class="p">[:,</span> <span class="n">i</span> <span class="o">*</span> <span class="n">gps_stack_number</span><span class="p">:(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">gps_stack_number</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dzts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">samp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">//</span> <span class="n">gps_stack_number</span><span class="p">)])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dzts</span><span class="p">))]</span>
+        <span class="k">for</span> <span class="n">dzt</span> <span class="ow">in</span> <span class="n">dzts</span><span class="p">:</span>
+            <span class="n">dzt</span><span class="o">.</span><span class="n">samp</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stack_data_list</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">stack_data_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">gps_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">dist</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">stack_data_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">stack_data_list</span><span class="p">[</span><span class="n">i</span><span class="p">][:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">stacked_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">stack_data_list</span><span class="p">)</span>
+        <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">((</span><span class="n">gps_data</span><span class="p">,</span> <span class="n">stacked_data</span><span class="p">,</span> <span class="n">kinematic_data</span><span class="p">,</span> <span class="n">total_lat</span><span class="p">,</span> <span class="n">total_lon</span><span class="p">,</span> <span class="n">total_dist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span><span class="p">),</span> <span class="nb">open</span><span class="p">(</span><span class="n">hashval</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">gps_data</span><span class="p">,</span> <span class="n">stacked_data</span><span class="p">,</span> <span class="n">kinematic_data</span><span class="p">,</span> <span class="n">total_lat</span><span class="p">,</span> <span class="n">total_lon</span><span class="p">,</span> <span class="n">total_dist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span></div>
+
+
+<span class="k">class</span> <span class="nc">GssiError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, David Lilien.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1a1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
