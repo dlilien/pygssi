@@ -314,7 +314,7 @@
 
 <dl class="function">
 <dt id="pygssi.lib.gssilib.process_radar">
-<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">process_radar</code><span class="sig-paren">(</span><em>fns</em>, <em>rev_list=None</em>, <em>t_srs='sps'</em>, <em>elev_fn=None</em>, <em>pickle_fn=None</em>, <em>gp=None</em>, <em>diel=None</em>, <em>xoff=0.0</em>, <em>filter_dat=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#process_radar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.process_radar" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">pygssi.lib.gssilib.</code><code class="descname">process_radar</code><span class="sig-paren">(</span><em>fns</em>, <em>rev_list=None</em>, <em>t_srs='sps'</em>, <em>elev_fn=None</em>, <em>pickle_fn=None</em>, <em>gp=None</em>, <em>diel=None</em>, <em>xoff=0.0</em>, <em>filter_dat=True</em>, <em>cache=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssilib.html#process_radar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssilib.process_radar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read in raw (or pickled) radar data and do a bunch of processing on it</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -329,6 +329,7 @@
 <li><strong>diel</strong> (<em>float</em><em>, </em><em>numpy.ndarray</em><em>, </em><em>str</em><em>, or </em><em>None</em>) &#8211; diel can be a 2-column csv with depths and dielectric constants, an array with depths and dielectric constants, a number giving a depth-constant dielectric constant, or None, which leaves things in two-way travel time. If layer_time_increment is None, we always stay in TWTT</li>
 <li><strong>xoff</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; offset all the x values by this much (useful for plotting)</li>
 <li><strong>filter_dat</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; hit the data with the defaults of <a class="reference internal" href="#pygssi.lib.gssilib.filter_data" title="pygssi.lib.gssilib.filter_data"><code class="xref py py-func docutils literal"><span class="pre">filter_data()</span></code></a>. If you want custom values, you should take the data returned and hit it with the custom filter.</li>
+<li><strong>cache</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; pickle results for fast future use (default False)</li>
 </ul>
 </td>
 </tr>

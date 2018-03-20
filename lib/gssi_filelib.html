@@ -202,7 +202,7 @@
 
 <dl class="function">
 <dt id="pygssi.lib.gssi_filelib.read">
-<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">read</code><span class="sig-paren">(</span><em>fns</em>, <em>revs</em>, <em>pickle_fn=None</em>, <em>elev_fn=None</em>, <em>t_srs='sps'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssi_filelib.html#read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssi_filelib.read" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">read</code><span class="sig-paren">(</span><em>fns</em>, <em>revs</em>, <em>pickle_fn=None</em>, <em>elev_fn=None</em>, <em>t_srs='sps'</em>, <em>cache=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssi_filelib.html#read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssi_filelib.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read in files (and try to get their GPS info too)</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -214,6 +214,7 @@
 <li><strong>pickle_fn</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Try to load pre-packaged results from this filename</li>
 <li><strong>elev_fn</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Load kinematic GPS data from this matlab file so that you don&#8217;t use the crappy ones from the GPS on the radar</li>
 <li><strong>t_srs</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; Load things into this projection (can convert to sps/EPSG:3031 or nps/EPSG:3413 from wgs84</li>
+<li><strong>cache</strong> (<em>bool</em><em>, </em><em>optional</em>) &#8211; pickle results for future use</li>
 </ul>
 </td>
 </tr>
@@ -245,6 +246,24 @@
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#pygssi.lib.gssi_filelib.DZT" title="pygssi.lib.gssi_filelib.DZT"><code class="xref py py-class docutils literal"><span class="pre">DZT</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pygssi.lib.gssi_filelib.write_dzt">
+<code class="descclassname">pygssi.lib.gssi_filelib.</code><code class="descname">write_dzt</code><span class="sig-paren">(</span><em>fn</em>, <em>dzt</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pygssi/lib/gssi_filelib.html#write_dzt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pygssi.lib.gssi_filelib.write_dzt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a dzt file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fn</strong> (<em>str</em>) &#8211; File to parse</li>
+<li><strong>dzt</strong> (<a class="reference internal" href="#pygssi.lib.gssi_filelib.DZT" title="pygssi.lib.gssi_filelib.DZT"><code class="xref py py-class docutils literal"><span class="pre">DZT</span></code></a>) &#8211; The data to write</li>
+</ul>
 </td>
 </tr>
 </tbody>

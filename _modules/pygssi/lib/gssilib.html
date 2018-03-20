@@ -257,7 +257,8 @@
                   <span class="n">gp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">diel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                   <span class="n">xoff</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-                  <span class="n">filter_dat</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                  <span class="n">filter_dat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Read in raw (or pickled) radar data and do a bunch of processing on it</span>
 <span class="sd">    </span>
 <span class="sd">    Parameters</span>
@@ -278,6 +279,8 @@
 <span class="sd">        offset all the x values by this much (useful for plotting)</span>
 <span class="sd">    filter_dat: bool, optional</span>
 <span class="sd">        hit the data with the defaults of :func:`~pygssi.lib.gssilib.filter_data`. If you want custom values, you should take the data returned and hit it with the custom filter.</span>
+<span class="sd">    cache: bool, optional</span>
+<span class="sd">        pickle results for fast future use (default False)</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -299,7 +302,7 @@
     <span class="k">elif</span> <span class="n">rev_list</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
         <span class="n">rev_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">rev_list</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">fns</span><span class="p">]</span>
 
-    <span class="n">_</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">rev_list</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="n">elev_fn</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="n">pickle_fn</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="n">t_srs</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">lldist</span><span class="p">,</span> <span class="n">dzts</span><span class="p">,</span> <span class="n">elev_list</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">fns</span><span class="p">,</span> <span class="n">rev_list</span><span class="p">,</span> <span class="n">elev_fn</span><span class="o">=</span><span class="n">elev_fn</span><span class="p">,</span> <span class="n">pickle_fn</span><span class="o">=</span><span class="n">pickle_fn</span><span class="p">,</span> <span class="n">t_srs</span><span class="o">=</span><span class="n">t_srs</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
 
     <span class="n">lldist</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">lldist</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">xoff</span>
 

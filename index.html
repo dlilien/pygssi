@@ -133,6 +133,31 @@
             
   <div class="section" id="welcome-to-pygssi-s-documentation">
 <h1>Welcome to pygssi&#8217;s documentation!<a class="headerlink" href="#welcome-to-pygssi-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>pygssi is an open-source library for opening GSSI radar files. This should give you access to all the information in the header (except the gain, which I have been unable to parse) and access to the raw returns. It can do some basic things like plot up those returns, and there is a (poor) tracing application. This library can also parse gga strings from a GPS attached to the SIR4000.</p>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Python 2 or 3,
+<a class="reference external" href="http://www.scipy.org">numpy</a>,
+<a class="reference external" href="http://numpy.org">scipy</a>,
+<a class="reference external" href="http://www.github.com/dshean/pygeotools">pygeotools</a>.</p>
+</div>
+<div class="section" id="install">
+<h2>Install<a class="headerlink" href="#install" title="Permalink to this headline">¶</a></h2>
+<p>You should only need to run
+<code class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></code>
+to gain access to the libraries and to get the executables on your path.</p>
+</div>
+<div class="section" id="testing">
+<h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
+<p>Included are few basic tests. You will need to install <a class="reference external" href="http://nose.readthedocs.io/en/latest/">nose</a> to use them. They should be run with <code class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">test</span></code></p>
+</div>
+</div>
+<div class="section" id="documentation">
+<h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
+<p>The main utilities to be aware of are:</p>
+<p><a class="reference external" href="lib/gssi_filelib.html">gssi_filelib</a>, which contains the functions that you would want to use to import data for use in your own code</p>
+<p><a class="reference external" href="lib/gssilib.html">gssilib</a>, which has some functions for filtering and plotting and overall processing</p>
+<p>and <a class="reference external" href="bin/read_gssi.html">read_gssi.py</a>, which will make a couple basic plots for you if all you need is a quick look. Further documentation can be found through the contents below.</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul>
