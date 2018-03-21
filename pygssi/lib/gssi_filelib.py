@@ -299,13 +299,15 @@ def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps', cache=False):
         print('Loading pickled data')
         if pickle_fn is not None:
             hashval = pickle_fn
+        fin = open(hashval, 'rb')
         (gps_data,
          stacked_data,
          total_lat,
          total_lon,
          total_dist,
          dzts,
-         elev_list) = pickle.load(open(hashval, 'rb'))
+         elev_list) = pickle.load(fin)
+        fin.close()
     else:
         print('Loading data from DZT and DZG files')
         gps_data = [get_dzg_data(os.path.splitext(fn)[0] + '.DZG', t_srs, rev=rev) for fn, rev in zip(fns, revs)]
@@ -339,7 +341,9 @@ def read(fns, revs, pickle_fn=None, elev_fn=None, t_srs='sps', cache=False):
                 stack_data_list[i] = stack_data_list[i][:, :-1]
         stacked_data = np.hstack(stack_data_list)
         if cache:
-            pickle.dump((gps_data, stacked_data, total_lat, total_lon, total_dist, dzts, elev_list), open(hashval, 'wb'))
+            fout = open(hashval, 'wb')
+            pickle.dump((gps_data, stacked_data, total_lat, total_lon, total_dist, dzts, elev_list), fout)
+            fout.close()
     lldist = np.vstack((total_lon, total_lat, total_dist)).transpose()
     return gps_data, stacked_data, lldist, dzts, elev_list
 

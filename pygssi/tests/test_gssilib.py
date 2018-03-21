@@ -21,6 +21,10 @@ class TestProcessRadar(unittest.TestCase):
         gssilib.process_radar(os.path.split(__file__)[0] + '/data/test_dat1.DZT', cache=False)
         self.assertTrue(True)
 
+    def test_barelist(self):
+        gssilib.process_radar([os.path.split(__file__)[0] + '/data/test_dat1.DZT'], cache=False)
+        self.assertTrue(True)
+
     def test_rev(self):
         gssilib.process_radar(os.path.split(__file__)[0] + '/data/test_dat1.DZT', cache=False, rev_list=True)
         self.assertTrue(True)
