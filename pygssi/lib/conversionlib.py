@@ -30,7 +30,7 @@ def to_date(bin, le=True):
     def bits(bytes):
         for b in bytes:
             for i in range(8):
-                yield (int(b) >> i) & 1
+                yield (b >> i) & 1
 
     def bit_to_int(bits):
         return sum([(2 ** i) * bit for i, bit in enumerate(bits)])
