@@ -28,7 +28,9 @@ def to_date(bin, le=True):
 
     """
     def bits(bytes):
-        for b in ord(bytes):
+        for b in bytes:
+            if type(b) == str:
+                b = ord(b)
             for i in range(8):
                 yield (b >> i) & 1
 
