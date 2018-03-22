@@ -1,5 +1,6 @@
 pygssi
 ======
+[![Build Status](https://travis-ci.org/dlilien/pygssi.svg?branch=master)](https://travis-ci.org/dlilien/pygssi)
 
 An open-source library for opening GSSI radar files. This should give you access to all the information in the header (except the gain, which I have been unable to parse) and access to the raw returns. This library can also parse gga strings from a GPS attached to the SIR4000. [Read the docs.](https://dlilien.github.io/pygssi)
 
