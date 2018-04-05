@@ -28,7 +28,7 @@ from scipy.io import loadmat
 from pygeotools.lib import geolib
 
 # No gray
-plt.rc('axes', prop_cycle=(cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#bcbd22', '#17becf']) + cycler('linestyle', ['solid'] * 9)))
+plt.rc('axes', prop_cycle=(cycler('color', ['#ff7f0e', '#1f77b4', '#2ca02c', '#d62728', '#9467bd', '#e377c2', '#8c564b', '#bcbd22', '#17becf']) + cycler('linestyle', ['solid'] * 9)))
 
 
 def labelLine(line, x, label=None, align=True, usex=True, bg=True, **kwargs):
@@ -380,7 +380,8 @@ def process_radar(fns,
                   with_elevs=True,
                   xoff=0.0,
                   plot_layer=None,
-                  bold_layer=None):
+                  bold_layer=None,
+                  fontsize=10):
     hashval = hashlib.sha256(''.join(fns).encode('UTF-8')).hexdigest()
     if pickle_fn is not None or os.path.exists(hashval):
         print('Loading pickled data')
@@ -547,7 +548,6 @@ def process_radar(fns,
                     ldict['layer {:d}'.format(linenum)] = np.hstack((coords, np.vstack((dist, elevs, depth)).transpose()))
                     
                     if plot_layer is None:
-                        print(dist / 1000., elevs - depth)
                         pl = ax.plot(dist / 1000., elevs - depth, linewidth=1)
                     else:
                         pl = ax.plot(dist / 1000., elevs - depth, linewidth=1, color='C0')
@@ -583,8 +583,9 @@ def process_radar(fns,
                             ln = linenum + 3
                         else:
                             ln = linenum - 15
-                        if len(depth[valid_mask]) > 0:
-                            ax2.text(-1.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=8, va='center', ha='center')
+
+                        if len(depth[valid_mask]) > 0 and (type(label) != int or (type(label) == int and (ln - 1) % label == 0)):
+                            ax2.text(-0.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=fontsize, va='center', ha='center')
                         
                     c = pl[0].get_color()
                     if slope:
