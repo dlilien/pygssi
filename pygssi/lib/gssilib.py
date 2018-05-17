@@ -574,9 +574,10 @@ def process_radar(fns,
 
                     if bold_layer is None or linenum != bold_layer:
                         lwn = lw
+                        pl = ax2.plot(dist / 1000., depth, linewidth=lwn, color='maroon')
                     else:
                         lwn = lw * 3
-                    pl = ax2.plot(dist / 1000., depth, linewidth=lwn)
+                        pl = ax2.plot(dist / 1000., depth, linewidth=lwn, color='C0')
 
                     if label:
                         if linenum < 15:
@@ -585,7 +586,8 @@ def process_radar(fns,
                             ln = linenum - 15
 
                         if len(depth[valid_mask]) > 0 and (type(label) != int or (type(label) == int and (ln - 1) % label == 0)):
-                            ax2.text(-0.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=fontsize, va='center', ha='center')
+                            # ax2.text(-0.5, depth[valid_mask][0], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=fontsize, va='center', ha='center')
+                            ax2.text(102.5, depth[valid_mask][-1], '{:d}'.format(ln), color=pl[0].get_color(), fontsize=fontsize, va='center', ha='center')
                         
                     c = pl[0].get_color()
                     if slope:
@@ -612,7 +614,7 @@ def process_radar(fns,
         fig.savefig('test.png', dpi=400)
         fig2.savefig('flat_surf.png', dpi=400)
     
-    return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict
+    return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict, y
 
 
 def apply_gain(gainpoints, stacked_data):
