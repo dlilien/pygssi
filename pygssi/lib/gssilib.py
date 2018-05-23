@@ -11,7 +11,7 @@ Class definitions and helper functions for gssi info
 
 The workhorses here are :func:`~pygssi.lib.gssilib.process_and_plot` and :func:`~pygssi.lib.gssilib.process_radar`, which will handle a lot of the steps of taking a raw DZG file and plotting it and/or returning it in a useful form
 """
-
+import os.path
 import numpy as np
 from .conversionlib import gained_decibels, data_to_db, tt_to_m_variable_arr
 from .gssi_filelib import read
@@ -88,10 +88,22 @@ def process_and_plot(fns,
     ldict: dict
         A dictionary of layer names and depths. None if no layers are input
     """
-    data, lldist, elev, y, diels = process_radar(fns, rev_list=rev_list, t_srs=t_srs, pickle_fn=pickle_fn, elev_fn=elev_fn, gp=gp, diel=diel, xoff=xoff, filter_dat=filter_dat)
+    data, lldist, elev, y, diels, dzts = process_radar(fns, rev_list=rev_list, t_srs=t_srs, pickle_fn=pickle_fn, elev_fn=elev_fn, gp=gp, diel=diel, xoff=xoff, filter_dat=filter_dat)
     if axin is None:
         fig, ax = plot_radar(data, x=lldist[:, 2] / scale_x, y=y, elev=elev)
         fig2, ax2 = plot_radar(data, x=lldist[:, 2] / scale_x, y=y, elev=None)
+
+        time_inc = dzts[0].header.range / dzts[0].header.nsamp
+        twtts = np.arange(len(y)) * time_inc
+        print(twtts)
+
+        ax_twtt = ax2.twinx()
+        ax_twtt.set_ylabel('Two-way travel time (ns)')
+        mark_times = np.arange(0, 1200, step=200)
+        mark_depths = [y[np.argmin(np.abs(twtts - t))] for t in mark_times]
+        ax_twtt.set_ylim(y[1], y[0])
+        ax_twtt.set_yticks(list(reversed(mark_depths)))
+        ax_twtt.set_yticklabels(['{:d}'.format(int(t)) for t in reversed(mark_times)])
     else:
         if with_elevs:
             ax = axin
@@ -110,7 +122,8 @@ def process_and_plot(fns,
     if axin is None:
         if elev is not None:
             fig.savefig('radar_variable_surf.png', dpi=400)
-        fig2.savefig('radar_flat_surf.png', dpi=400)
+        ax2.set_title('Profile ' + os.path.splitext(fns[0])[0][-3:])
+        fig2.savefig(os.path.splitext(fns[0])[0] + '.png', dpi=400)
 
     return data, lldist, elev, y, diels, ldict
 
@@ -190,7 +203,7 @@ def process_radar(fns,
     if filter_dat:
         data = filter_data(data)
     
-    return data, lldist, elev, y, diels
+    return data, lldist, elev, y, diels, dzts
 
 
 def plot_layers(layer_fns, ax_flat, lldist, diels, ax_variablesurf=None, linewidth=1, scale_x=1000., z=None):
@@ -321,6 +334,9 @@ def plot_radar(data, x=None, y=None, out_fn=None, elev=None, ax=None, xlabel='Di
             ax.set_ylabel(ylabel)
         if elev is None:
             ax.invert_yaxis()
+
+
+
     else:
         plt.imshow(data, cmap=plt.cm.gray_r, vmin=lims[0], vmax=lims[1])
         ax.set_xlabel('Trace')

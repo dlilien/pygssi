@@ -46,7 +46,7 @@ def check_args(args):
 
     try:
         args.diel = float(args.diel)
-    except TypeError:
+    except ValueError:
         pass
 
 
