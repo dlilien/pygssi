@@ -1,5 +1,5 @@
-Read binary GSSI files
-======================
+Process and plot binary GSSI files
+==================================
 
 .. automodule:: pygssi.lib.gssilib
     :members:

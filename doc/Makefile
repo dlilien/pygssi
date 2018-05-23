@@ -6,7 +6,7 @@ SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = ../pygssi
 SOURCEDIR     = .
-BUILDDIR      = ../_build
+BUILDDIR      = ../pygssi-sphinx/
 
 # Put it first so that "make" without argument is like "make help".
 help:

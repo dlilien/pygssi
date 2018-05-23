@@ -11,7 +11,6 @@ Created for compilation of fortran code
 """
 import setuptools
 from numpy.distutils.core import setup
-setuptools
 
 # I wrote a non-backwards compatible grid reader, so we need to check version
 # Need to support python2 still because ryder does not have python3 c headers

@@ -9,7 +9,7 @@
 """
 Some classes and functions to handle different types of GPS data
 
-The workhorse of this library, nmea_info, is not designed to be created directly. See `gssilib.get_dzg_data`
+The workhorse of this library, NMEA, is not designed to be created directly. See `gssi_filelib.get_dzg_data`
 """
 from pygeotools.lib import geolib
 import numpy as np
@@ -17,7 +17,7 @@ from scipy.io import loadmat
 from scipy.spatial import cKDTree as KDTree
 
 
-class nmea_info:
+class NMEA:
     """Container for general information about lat, lon, etc.
     
     Attributes
@@ -156,7 +156,7 @@ def nmea_all_info(list_of_sentences):
         return numbers
 
     if list_of_sentences[0].split(',')[0] == '$GPGGA':
-        data = nmea_info()
+        data = NMEA()
         data.all_data = np.array([_gga_sentence_split(sentence) for sentence in list_of_sentences])
         return data
     else:

@@ -7,5 +7,7 @@ Contents:
         :maxdepth: 2
 
         gssilib
+        gssi_filelib
+        conversionlib
         gpslib
         tracelib
