@@ -29,7 +29,7 @@ def get_args():
     parser.add_argument('--diel', type=float, default=2.6, help='dielectric constant')
     parser.add_argument('--dielf', type=str, default=None, help='CSV file of dielectric constants, with the first column as max depth and the second as dielectric constant')
     parser.add_argument('fn', type=str, nargs='+', help='DZT filenames to use and mash together, in order')
-    parser.add_argument('--rev', type=str, default=None, help='reverse files, comma separated list of 0 not to flip and 1 to flip')
+    parser.add_argument('--rev', type=str, default='0', help='reverse files, comma separated list of 0 not to flip and 1 to flip')
     parser.add_argument('--layers', type=str, nargs='+', default=None, help='files containing layers')
     parser.add_argument('--res', type=float, default=20., help='resample the data to this spatial resolution')
     parser.add_argument('-slope', action='store_true', help='plot regression')

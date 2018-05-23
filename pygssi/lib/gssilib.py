@@ -609,7 +609,7 @@ def process_radar(fns,
 
     if axin is None:
         fig.savefig('test.png', dpi=400)
-        fig2.savefig('flat_surf.png', dpi=400)
+        fig2.savefig(os.path.splitext(fns[0])[0] + '.pdf', dpi=400)
     
     return (gps_data, stacked_data, kinematic_data, total_lat, total_lon, total_dist, dzts, elev_list), ldict
 
